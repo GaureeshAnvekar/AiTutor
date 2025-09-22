@@ -1,0 +1,11 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/api/pdfs/[id]/route": "app/api/pdfs/[id]/route.js",
+  "/upload/page": "app/upload/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/api/upload/route": "app/api/upload/route.js",
+  "/pdfs/[id]/page": "app/pdfs/[id]/page.js",
+  "/api/pdfs/[id]/file/route": "app/api/pdfs/[id]/file/route.js"
+}

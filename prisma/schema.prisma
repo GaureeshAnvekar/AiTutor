@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  pdfs      PDF[]
+  chats     Chat[]
+}
+
+model PDF {
+  id         String   @id @default(cuid())
+  ownerId    String
+  owner      User     @relation(fields: [ownerId], references: [id])
+  filename   String
+  originalName String
+  filePath   String
+  fileSize   Int
+  pageCount  Int?
+  createdAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  chats      Chat[]
+  chunks     PDFChunk[]
+}
+
+model Chat {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  pdfId     String?
+  pdf       PDF?      @relation(fields: [pdfId], references: [id])
+  title     String
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  role      String
+  content   String
+  annotations String?
+  createdAt DateTime @default(now())
+}
+
+model PDFChunk {
+  id          String   @id @default(cuid())
+  pdfId       String
+  pdf         PDF      @relation(fields: [pdfId], references: [id])
+  pageNumber  Int
+  chunkIndex  Int
+  text        String
+  bboxX       Float
+  bboxY       Float
+  bboxWidth   Float
+  bboxHeight  Float
+  textLength  Int
+  vectorId    String?  // For vector database reference
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([pdfId, pageNumber, chunkIndex])
+}
