@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       const searchResults = await searchSimilarChunks(message, pdfId, 5);
       
       // Get full chunk details from database
+      /*
       relevantChunks = await Promise.all(
         searchResults.map(async (chunk) => {
           const dbChunk = await prisma.pDFChunk.findUnique({
@@ -80,14 +81,14 @@ export async function POST(req: NextRequest) {
             metadata: chunk.metadata,
           };
         })
-      );
+      );*/
 
       // Filter out null results
-      relevantChunks = relevantChunks.filter(chunk => chunk !== null);
+      //relevantChunks = relevantChunks.filter(chunk => chunk !== null);
       
       // Create context from relevant chunks
-      const contextText = relevantChunks.map(chunk => 
-        `Page ${chunk.pageNumber}: ${chunk.text}`
+      const contextText = searchResults.map(chunk => 
+        `Page ${chunk.metadata.pageNumber}: ${chunk.text}`
       ).join('\n\n');
       
       pdfText = `PDF Document: ${pdf.originalName}
