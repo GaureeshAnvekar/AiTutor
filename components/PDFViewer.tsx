@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
 import { PDFViewer as PDFViewerLib, EventBus, PDFLinkService } from "pdfjs-dist/web/pdf_viewer";
 import "pdfjs-dist/web/pdf_viewer.css";
+import { eventDispatcher, EVENTS } from "@/lib/eventDispatcher";
 
 // Use local worker file
 pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
@@ -27,6 +28,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
   const [isPdfSet, setIsPdfSet] = useState(false);
   const isInitializedRef = useRef(false);
   const initializationInProgressRef = useRef(false);
+  const [chatMetadata, setChatMetadata] = useState<any>(null);
 
   /*
   const renderPage = useCallback(async (pdf: any, pageNum: number) => {
@@ -241,6 +243,48 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
     setIsPdfSet(false);
   }, [url]);
 
+  // Listen for chat metadata events
+  useEffect(() => {
+    const handleChatMetadata = (data: any) => {
+      console.log('PDFViewer received chat metadata:', data);
+      setChatMetadata(data);
+      
+      pdfViewerRef.current!.scrollPageIntoView({
+        pageNumber: 1,
+        destArray: [null, { name: "XYZ" }, data.relevantChunks[0].metadata.bboxX, data.relevantChunks[0].metadata.bboxY, 1],
+      });
+
+
+      // You can add logic here to:
+      // - Navigate to relevant pages
+      // - Highlight relevant sections
+      // - Show visual indicators
+      // - Extract page numbers from relevantChunks
+      
+      if (data.relevantChunks && data.relevantChunks.length > 0) {
+        // Extract unique page numbers from relevant chunks
+        const pageNumbers = [...new Set(
+          data.relevantChunks.map((chunk: any) => chunk.metadata?.pageNumber).filter(Boolean)
+        )];
+        
+        console.log('Relevant pages found:', pageNumbers);
+        
+        // If there are relevant pages, you could navigate to the first one
+        if (pageNumbers.length > 0 && onPageChange) {
+          const firstRelevantPage = Math.min(...pageNumbers);
+          console.log(`Navigating to relevant page: ${firstRelevantPage}`);
+          onPageChange(firstRelevantPage);
+        }
+      }
+    };
+
+    eventDispatcher.on(EVENTS.CHAT_METADATA_RECEIVED, handleChatMetadata);
+    
+    return () => {
+      eventDispatcher.off(EVENTS.CHAT_METADATA_RECEIVED, handleChatMetadata);
+    };
+  }, [onPageChange]);
+
   if (error) {
     return (
       <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
@@ -265,6 +309,23 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
             <p className="text-sm text-gray-600">Loading page {page}...</p>
           </div>
+        </div>
+      )}
+
+      {/* Chat metadata indicator */}
+      {chatMetadata && (
+        <div className="absolute top-2 right-2 bg-green-100 border border-green-300 rounded-lg p-2 z-20 max-w-xs">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-xs text-green-700 font-medium">
+              Found {chatMetadata.relevantChunks?.length || 0} relevant sections
+            </span>
+          </div>
+          {chatMetadata.searchQuery && (
+            <p className="text-xs text-green-600 mt-1 truncate">
+              "{chatMetadata.searchQuery}"
+            </p>
+          )}
         </div>
       )}
 

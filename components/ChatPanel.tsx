@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { Send, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { eventDispatcher, EVENTS } from "@/lib/eventDispatcher";
 
 interface Message {
   id: string;
@@ -73,6 +74,16 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
       };
       
       setMessages(prev => [...prev, assistantMessage]);
+
+      // Dispatch metadata to PDFViewer
+      if (data.relevantChunks || data.metadata) {
+        eventDispatcher.dispatch(EVENTS.CHAT_METADATA_RECEIVED, {
+          relevantChunks: data.relevantChunks,
+          metadata: data.metadata,
+          searchQuery: userMessage.content,
+          timestamp: new Date(),
+        });
+      }
       
     } catch (error) {
       console.error("Error sending message:", error);

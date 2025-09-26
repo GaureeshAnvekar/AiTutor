@@ -48,10 +48,11 @@ export async function POST(req: NextRequest) {
     // Use semantic search to find relevant chunks
     let pdfText = "";
     let relevantChunks: any[] = [];
+    let searchResults: any[] = [];
     
     try {
       // Search for chunks relevant to the user's message
-      const searchResults = await searchSimilarChunks(message, pdfId, 5);
+      searchResults = await searchSimilarChunks(message, pdfId, 5);
       
       // Get full chunk details from database
       /*
@@ -186,7 +187,7 @@ Note: This response is based on the most relevant sections of the PDF that match
 
     return NextResponse.json({
       text: aiResponse,
-      relevantChunks: relevantChunks, // Include relevant chunks found by semantic search
+      relevantChunks: searchResults,//relevantChunks, // Include relevant chunks found by semantic search
       metadata: {
         pdfId: pdfId,
         totalRelevantChunks: relevantChunks.length,
