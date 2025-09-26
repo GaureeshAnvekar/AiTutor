@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: false,
   webpack: (config) => {
     config.resolve.alias.canvas = false;
     // Fix for PDF.js compatibility
