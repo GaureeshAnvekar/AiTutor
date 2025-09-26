@@ -198,7 +198,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
         initializationInProgressRef.current = false;
         pdfViewerRef.current!.scrollPageIntoView({
           pageNumber: 1,
-          destArray: [null, { name: "XYZ" }, 0, 400, 1.5],
+          destArray: [null, { name: "XYZ" }, 0, 0, 1],
         });
       });
 
