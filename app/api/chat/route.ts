@@ -9,6 +9,39 @@ import { searchSimilarChunks } from "@/lib/vector";
 
 // PDF processing is now handled by the pdf-chunking utility
 
+// Function to sanitize chunk text using OpenAI
+async function sanitizeChunkText(originalQuery: string, chunkText: string, openai: OpenAI): Promise<string> {
+  try {
+    const sanitizationPrompt = `For this original query: "${originalQuery}"
+
+This was the chunk text received:
+${chunkText}
+
+I want you to extract only the relevant text as it is without changing any format. Return only the relevant portions that relate to the original query, maintaining the exact original formatting and wording.`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: "You are a text extraction assistant. Extract only the relevant portions of the provided text that relate to the user's query, maintaining exact formatting and wording. Do not paraphrase or change the text - only extract the relevant parts. If there are parts in between to be removed, remove them, and concatenate the other relevant parts. If entire text is irrelevant, add the word BAD to your response."
+        },
+        {
+          role: "user",
+          content: sanitizationPrompt
+        }
+      ],
+      max_tokens: 1000,
+      temperature: 0.1, // Low temperature for consistent extraction
+    });
+
+    return completion.choices[0]?.message?.content || chunkText;
+  } catch (error) {
+    console.error("Error sanitizing chunk text:", error);
+    return chunkText; // Return original text if sanitization fails
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -45,6 +78,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "PDF not found" }, { status: 404 });
     }
 
+    // Initialize OpenAI client early for potential chunk sanitization
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
     // Use semantic search to find relevant chunks
     let pdfText = "";
     let relevantChunks: any[] = [];
@@ -53,6 +91,25 @@ export async function POST(req: NextRequest) {
     try {
       // Search for chunks relevant to the user's message
       searchResults = await searchSimilarChunks(message, pdfId, 5);
+      
+      // Sanitize chunk text using OpenAI if we have search results
+      if (searchResults.length > 0) {
+        console.log(`Sanitizing ${searchResults.length} chunks for query: "${message}"`);
+        
+        // Sanitize each chunk's text
+        const sanitizedResults = await Promise.all(
+          searchResults.map(async (chunk) => {
+            const sanitizedText = await sanitizeChunkText(message, chunk.text, openai);
+            return {
+              ...chunk,
+              text: sanitizedText
+            };
+          })
+        );
+        
+        searchResults = sanitizedResults.filter(chunk => chunk.text !== "BAD");
+        console.log("Chunk sanitization completed");
+      }
       
       // Get full chunk details from database
       /*
@@ -87,7 +144,7 @@ export async function POST(req: NextRequest) {
       // Filter out null results
       //relevantChunks = relevantChunks.filter(chunk => chunk !== null);
       
-      // Create context from relevant chunks
+      // Create context from relevant chunks (now with sanitized text)
       const contextText = searchResults.map(chunk => 
         `Page ${chunk.metadata.pageNumber}: ${chunk.text}`
       ).join('\n\n');
@@ -98,7 +155,7 @@ ${contextText}
 
 Note: This response is based on the most relevant sections of the PDF that match your question.`;
         
-      console.log(`Found ${relevantChunks.length} relevant chunks for query: "${message}"`);
+      console.log(`Found ${searchResults.length} relevant chunks for query: "${message}"`);
       
     } catch (error) {
       console.error("Error performing semantic search:", error);
@@ -154,11 +211,6 @@ Note: This response is based on the most relevant sections of the PDF that match
       })),
       { role: "user" as const, content: message },
     ];
-
-    // Initialize OpenAI client
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
 
     // Call OpenAI API
     const completion = await openai.chat.completions.create({
