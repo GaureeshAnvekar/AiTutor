@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
-import { PDFViewer as PDFViewerLib, EventBus, PDFLinkService } from "pdfjs-dist/web/pdf_viewer";
+//import { PDFViewer as PDFViewerLib, EventBus, PDFLinkService, PDFFindController } from "pdfjs-dist/web/pdf_viewer";
+import * as pdfjsViewer from "pdfjs-dist/web/pdf_viewer";
 import "pdfjs-dist/web/pdf_viewer.css";
 import { eventDispatcher, EVENTS } from "@/lib/eventDispatcher";
 
@@ -29,6 +30,14 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
   const isInitializedRef = useRef(false);
   const initializationInProgressRef = useRef(false);
   const [chatMetadata, setChatMetadata] = useState<any>(null);
+  const [overlayBoxes, setOverlayBoxes] = useState<Array<{
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    pageNumber: number;
+  }>>([]);
 
   /*
   const renderPage = useCallback(async (pdf: any, pageNum: number) => {
@@ -171,19 +180,30 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
       // Clear any existing content in the viewer
       viewer.innerHTML = '';
 
-      const eventBus = new EventBus();
+      const eventBus = new pdfjsViewer.EventBus();
 
       
-      const linkService = new PDFLinkService({ eventBus });
+      const linkService = new pdfjsViewer.PDFLinkService({ eventBus });
 
-      const pdfViewer = new PDFViewerLib({
+
+      const findController = new pdfjsViewer.PDFFindController({
+        eventBus,
+        linkService,
+      });
+
+
+      const pdfViewer = new pdfjsViewer.PDFViewer({
         container: container,
         viewer,
         eventBus,
         linkService,
+        findController: findController,
+        textLayerMode: 2,
       });
       linkService.setViewer(pdfViewer);
       pdfViewerRef.current = pdfViewer;
+
+      
 
       const loadingTask = pdfjsLib.getDocument(url);
       const pdfDoc = await loadingTask.promise;
@@ -202,16 +222,51 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
           pageNumber: 1,
           destArray: [null, { name: "XYZ" }, 0, 0, 1],
         });
+
+        /*
+        eventBus.dispatch("find", {
+          query: "is a local vector database",
+          caseSensitive: false,
+          highlightAll: true,
+          findPrevious: false,
+          type: "",
+        });*/
+
+        const textLayers = document.querySelectorAll(".textLayer");
+        textLayers.forEach(layer => {
+          console.log("inside");
+          const spans = Array.from(layer.querySelectorAll("span"));
+          spans.forEach((span: HTMLElement) => {
+            if (span.textContent?.includes("dolby")) {
+              span.style.backgroundColor = "yellow";
+            }
+          });
+        });
+
+
       });
 
-      setIsLoading(false);
-      setIsPdfSet(true);
-      // Reset the in-progress flag when initialization is complete
-      initializationInProgressRef.current = false;
+      eventBus.on('textlayerrendered', (evt) => {
+        console.log('Page rendered: ', evt.pageNumber);
 
 
-      // Jump to page 1 initially
-      //pdfViewer.currentPageNumber = 1;
+        const textLayers = document.querySelectorAll(".textLayer");
+        console.log("textLayers: ", textLayers);
+        textLayers.forEach(layer => {
+          console.log("inside");
+          const spans = Array.from(layer.querySelectorAll("span"));
+          console.log("spans: ", spans);
+          spans.forEach((span: HTMLElement) => {
+            if (span.textContent?.includes("Dolby")) {
+              console.log("dolby");
+              span.style.backgroundColor = "yellow";
+            }
+          });
+        });
+
+
+      });
+
     };
 
     load();
@@ -249,31 +304,45 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
       console.log('PDFViewer received chat metadata:', data);
       setChatMetadata(data);
       
-      pdfViewerRef.current!.scrollPageIntoView({
-        pageNumber: 1,
-        destArray: [null, { name: "XYZ" }, data.relevantChunks[0].metadata.bboxX, data.relevantChunks[0].metadata.bboxY, 1],
-      });
-
-
-      // You can add logic here to:
-      // - Navigate to relevant pages
-      // - Highlight relevant sections
-      // - Show visual indicators
-      // - Extract page numbers from relevantChunks
+      // Clear previous overlay boxes
+      setOverlayBoxes([]);
       
       if (data.relevantChunks && data.relevantChunks.length > 0) {
-        // Extract unique page numbers from relevant chunks
-        const pageNumbers = [...new Set(
-          data.relevantChunks.map((chunk: any) => chunk.metadata?.pageNumber).filter(Boolean)
-        )];
+        // Focus on only the first chunk's metadata
+        const firstChunk = data.relevantChunks[0];
         
-        console.log('Relevant pages found:', pageNumbers);
-        
-        // If there are relevant pages, you could navigate to the first one
-        if (pageNumbers.length > 0 && onPageChange) {
-          const firstRelevantPage = Math.min(...pageNumbers);
+        if (firstChunk.metadata && 
+            firstChunk.metadata.bboxX !== undefined && 
+            firstChunk.metadata.bboxY !== undefined &&
+            firstChunk.metadata.bboxWidth !== undefined &&
+            firstChunk.metadata.bboxHeight !== undefined) {
+          
+          const overlayBox = {
+            id: `overlay-first-chunk-${firstChunk.metadata.pageNumber}`,
+            x: firstChunk.metadata.bboxX,
+            y: firstChunk.metadata.bboxY,
+            width: firstChunk.metadata.bboxWidth,
+            height: firstChunk.metadata.bboxHeight,
+            pageNumber: firstChunk.metadata.pageNumber || 1,
+          };
+          
+          console.log('Created overlay box for first chunk:', overlayBox);
+          setOverlayBoxes([overlayBox]);
+          
+          // Navigate to the first chunk's page
+          const firstRelevantPage = firstChunk.metadata.pageNumber || 1;
           console.log(`Navigating to relevant page: ${firstRelevantPage}`);
-          onPageChange(firstRelevantPage);
+          
+          // Scroll to the first relevant chunk
+          if (onPageChange) {
+            onPageChange(firstRelevantPage);
+          }
+          
+          // Scroll to the specific position
+          pdfViewerRef.current!.scrollPageIntoView({
+            pageNumber: firstRelevantPage,
+            destArray: [null, { name: "XYZ" }, firstChunk.metadata.bboxX, firstChunk.metadata.bboxY, 1],
+          });
         }
       }
     };
@@ -328,6 +397,27 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
           )}
         </div>
       )}
+
+      {/* Overlay boxes for highlighting relevant sections */}
+      <div className="absolute inset-0 pointer-events-none z-30">
+        {overlayBoxes.map((box) => (
+          <div
+            key={box.id}
+            className="absolute pointer-events-none border-2 border-blue-500 bg-blue-100 bg-opacity-20"
+            style={{
+              left: `${box.x}px`,
+              top: `${box.y}px`,
+              width: `${box.width}px`,
+              height: `${box.height}px`,
+              boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5)',
+            }}
+          >
+            <div className="absolute -top-6 left-0 bg-blue-500 text-white text-xs px-1 py-0.5 rounded text-nowrap">
+              Page {box.pageNumber}
+            </div>
+          </div>
+        ))}
+      </div>
 
 
     <div
