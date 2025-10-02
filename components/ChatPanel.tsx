@@ -2,12 +2,25 @@
 import { useState, useEffect, useRef } from "react";
 import { Send, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { eventDispatcher, EVENTS } from "@/lib/eventDispatcher";
+import MetadataPill from "./MetadataPill";
+
+interface ChunkMetadata {
+  pageNumber: number;
+  text: string;
+  similarity?: number;
+  bboxX?: number;
+  bboxY?: number;
+  bboxWidth?: number;
+  bboxHeight?: number;
+  metadata?: any;
+}
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  relevantChunks?: ChunkMetadata[];
 }
 
 interface ChatPanelProps {
@@ -71,19 +84,20 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
         role: "assistant",
         content: data.text,
         timestamp: new Date(),
+        relevantChunks: data.relevantChunks || [],
       };
       
       setMessages(prev => [...prev, assistantMessage]);
 
       // Dispatch metadata to PDFViewer
-      if (data.relevantChunks || data.metadata) {
+      /*if (data.relevantChunks || data.metadata) {
         eventDispatcher.dispatch(EVENTS.CHAT_METADATA_RECEIVED, {
           relevantChunks: data.relevantChunks,
           metadata: data.metadata,
           searchQuery: userMessage.content,
           timestamp: new Date(),
         });
-      }
+      }*/
       
     } catch (error) {
       console.error("Error sending message:", error);
@@ -113,6 +127,21 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handlePillClick = (chunk: ChunkMetadata) => {
+    // Dispatch event to navigate to the specific chunk
+    console.log("The chunk is: ", chunk);
+    eventDispatcher.dispatch(EVENTS.CHAT_METADATA_RECEIVED, {
+      relevantChunks: [chunk],
+      metadata: {
+        pdfId: pdfId,
+        totalRelevantChunks: 1,
+        searchQuery: `Navigate to page ${chunk.pageNumber}`,
+        pageNumber: chunk.metadata.pageNumber,
+      },
+      timestamp: new Date(),
+    });
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Messages */}
@@ -138,6 +167,22 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
                     : "bg-gray-100 text-gray-900"
                 }`}>
                   <p className="text-sm">{msg.content}</p>
+                  
+                  {/* Show metadata pills for assistant messages with relevant chunks */}
+                  {msg.role === "assistant" && msg.relevantChunks && msg.relevantChunks.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <p className="text-xs text-gray-500 mb-2">Related sections:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {msg.relevantChunks.map((chunk, index) => (
+                          <MetadataPill
+                            key={`${msg.id}-chunk-${index}`}
+                            chunk={chunk}
+                            onClick={handlePillClick}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className={`text-xs mt-1 ${msg.role === "user" ? "text-right text-gray-500" : "text-left text-gray-500"}`}>
                   {formatTime(msg.timestamp)}

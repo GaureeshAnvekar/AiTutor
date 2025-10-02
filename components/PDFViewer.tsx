@@ -232,26 +232,17 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
           type: "",
         });*/
 
-        const textLayers = document.querySelectorAll(".textLayer");
-        textLayers.forEach(layer => {
-          console.log("inside");
-          const spans = Array.from(layer.querySelectorAll("span"));
-          spans.forEach((span: HTMLElement) => {
-            if (span.textContent?.includes("dolby")) {
-              span.style.backgroundColor = "yellow";
-            }
-          });
-        });
 
 
       });
 
+      /*
       eventBus.on('textlayerrendered', (evt) => {
-        console.log('Page rendered: ', evt.pageNumber);
+        //console.log('Page rendered: ', evt.pageNumber);
 
 
         const textLayers = document.querySelectorAll(".textLayer");
-        console.log("textLayers: ", textLayers);
+        //console.log("textLayers: ", textLayers);
         textLayers.forEach(layer => {
           console.log("inside");
           const spans = Array.from(layer.querySelectorAll("span"));
@@ -265,7 +256,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
         });
 
 
-      });
+      });*/
 
     };
 
@@ -303,10 +294,34 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
     const handleChatMetadata = (data: any) => {
       console.log('PDFViewer received chat metadata:', data);
       setChatMetadata(data);
+      const {metadata, relevantChunks, timestamp} = data;
+      const pillChunk = relevantChunks[0];
+      const pillChunkText = pillChunk.text.toLowerCase().trim();
+
+      
+      const textLayers = document.querySelectorAll(".textLayer");
+      textLayers.forEach(layer => {
+        const spans = Array.from(layer.querySelectorAll("span"));
+        spans.forEach((span: HTMLElement) => {
+          const spanText = span.textContent?.toLowerCase().trim();
+          if (spanText != '' && pillChunkText.includes(spanText)) {
+            console.log("span.textContent: ", spanText);
+            console.log("pillChunkText: ", pillChunkText);
+            span.style.border = "1px solid red";
+            // Randomly add border-radius to make some look like circles
+            if (Math.random() > 0.5) {
+              span.style.borderRadius = "50%";
+            }
+          }
+        });
+      });
+  
+
+
       
       // Clear previous overlay boxes
-      setOverlayBoxes([]);
-      
+      //setOverlayBoxes([]);
+      /*
       if (data.relevantChunks && data.relevantChunks.length > 0) {
         // Focus on only the first chunk's metadata
         const firstChunk = data.relevantChunks[0];
@@ -344,7 +359,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
             destArray: [null, { name: "XYZ" }, firstChunk.metadata.bboxX, firstChunk.metadata.bboxY, 1],
           });
         }
-      }
+      }*/
     };
 
     eventDispatcher.on(EVENTS.CHAT_METADATA_RECEIVED, handleChatMetadata);
