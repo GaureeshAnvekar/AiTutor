@@ -73,3 +73,4 @@ export default function MetadataPill({ chunk, onClick, className = "" }: Metadat
     </button>
   );
 }
+
