@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { Send, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { eventDispatcher, EVENTS } from "@/lib/eventDispatcher";
 import MetadataPill from "./MetadataPill";
+import VoiceControls, { VoiceControlsRef } from "./VoiceControls";
+import BrowserCompatibility from "./BrowserCompatibility";
 
 interface ChunkMetadata {
   pageNumber: number;
@@ -34,7 +36,10 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(true);
+  const [voiceSupported, setVoiceSupported] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const voiceControlsRef = useRef<VoiceControlsRef>(null);
 
   useEffect(() => {
     scrollToBottom();
@@ -89,6 +94,16 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
       
       setMessages(prev => [...prev, assistantMessage]);
 
+      // Auto-speak the AI response if enabled
+      if (autoSpeak && voiceControlsRef.current) {
+        // Add a small delay to ensure the component is ready
+        setTimeout(() => {
+          if (voiceControlsRef.current) {
+            voiceControlsRef.current.handleStartSpeaking(assistantMessage.content);
+          }
+        }, 100);
+      }
+
       // Dispatch metadata to PDFViewer
       /*if (data.relevantChunks || data.metadata) {
         eventDispatcher.dispatch(EVENTS.CHAT_METADATA_RECEIVED, {
@@ -113,14 +128,21 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
     }
   };
 
-  const handleVoiceInput = () => {
-    setIsListening(!isListening);
-    // Voice input logic would go here
+  const handleVoiceInput = (transcript: string) => {
+    // Set the transcript as the message and send it
+    setMessage(transcript);
+    // Automatically send the voice input as a message
+    setTimeout(() => {
+      const form = document.querySelector('form');
+      if (form) {
+        form.requestSubmit();
+      }
+    }, 100);
   };
 
-  const handleVoiceOutput = () => {
-    setIsSpeaking(!isSpeaking);
-    // Voice output logic would go here
+  const handleVoiceOutput = (text: string) => {
+    // Voice output is handled by the VoiceControls component
+    console.log('Voice output completed:', text);
   };
 
   const formatTime = (date: Date) => {
@@ -168,6 +190,24 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
                 }`}>
                   <p className="text-sm">{msg.content}</p>
                   
+                  {/* Voice output button for assistant messages */}
+                  {msg.role === "assistant" && voiceSupported && (
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <button
+                        onClick={() => {
+                          if (voiceControlsRef.current) {
+                            voiceControlsRef.current.handleStartSpeaking(msg.content);
+                          }
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                        disabled={isLoading}
+                      >
+                        <Volume2 className="h-3 w-3" />
+                        <span>Speak Response</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Show metadata pills for assistant messages with relevant chunks */}
                   {msg.role === "assistant" && msg.relevantChunks && msg.relevantChunks.length > 0 && (
                     <div className="mt-3 pt-2 border-t border-gray-200">
@@ -204,6 +244,24 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Browser compatibility check */}
+      <BrowserCompatibility onCompatibilityChange={setVoiceSupported} />
+
+      {/* Auto-speak toggle */}
+      {voiceSupported && (
+        <div className="border-t p-2 bg-gray-50 flex items-center justify-between">
+          <label className="flex items-center space-x-2 text-sm">
+            <input
+              type="checkbox"
+              checked={autoSpeak}
+              onChange={(e) => setAutoSpeak(e.target.checked)}
+              className="rounded"
+            />
+            <span>Auto-speak AI responses</span>
+          </label>
+        </div>
+      )}
+
       {/* Message Input */}
       <form onSubmit={sendMessage} className="border-t p-4 bg-white flex items-center space-x-2">
         <input
@@ -221,28 +279,14 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
         >
           <Send className="h-5 w-5" />
         </button>
-        <button
-          type="button"
-          onClick={handleVoiceInput}
-          className={`p-2 rounded-lg ${
-            isListening ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600"
-          } hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
-          title={isListening ? "Stop listening" : "Start voice input"}
-          disabled={isLoading}
-        >
-          {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-        </button>
-        <button
-          type="button"
-          onClick={handleVoiceOutput}
-          className={`p-2 rounded-lg ${
-            isSpeaking ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"
-          } hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
-          title={isSpeaking ? "Stop speaking" : "Start voice output"}
-          disabled={isLoading}
-        >
-          {isSpeaking ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-        </button>
+        {voiceSupported && (
+          <VoiceControls
+            ref={voiceControlsRef}
+            onVoiceInput={handleVoiceInput}
+            onVoiceOutput={handleVoiceOutput}
+            disabled={isLoading}
+          />
+        )}
       </form>
     </div>
   );
