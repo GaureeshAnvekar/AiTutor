@@ -25,11 +25,13 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
   const [error, setError] = useState("");
   const [scale, setScale] = useState(1.5);
   const containerRef = useRef<HTMLDivElement>(null);
-  const pdfViewerRef = useRef<PDFViewerLib | null>(null);
+  const pdfViewerRef = useRef<any>(null);
   const [isPdfSet, setIsPdfSet] = useState(false);
   const isInitializedRef = useRef(false);
   const initializationInProgressRef = useRef(false);
+  const currentUrlRef = useRef<string>("");
   const [chatMetadata, setChatMetadata] = useState<any>(null);
+  const mountedRef = useRef(true);
   const [overlayBoxes, setOverlayBoxes] = useState<Array<{
     id: string;
     x: number;
@@ -38,6 +40,9 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
     height: number;
     pageNumber: number;
   }>>([]);
+  const pillSpansRef = useRef<Array<HTMLElement>>([]);
+  const currChunkIdRef = useRef<string>("");
+  const currFindChunkIdxRef = useRef(0);
 
   /*
   const renderPage = useCallback(async (pdf: any, pageNum: number) => {
@@ -147,11 +152,14 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
         isInitialized: isInitializedRef.current,
         initializationInProgress: initializationInProgressRef.current,
         isPdfSet,
-        url
+        url,
+        currentUrl: currentUrlRef.current
       });
 
-      // Check if already initialized or initialization in progress
-      if (!containerRef.current || isInitializedRef.current || initializationInProgressRef.current) {
+      // Check if already initialized for this URL or initialization in progress
+      if (!containerRef.current || 
+          (isInitializedRef.current && currentUrlRef.current === url) || 
+          initializationInProgressRef.current) {
         console.log('Skipping PDF initialization - already initialized, in progress, or missing container');
         return;
       }
@@ -164,15 +172,18 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
       // Clean up any existing viewer first
       if (pdfViewerRef.current) {
         console.log('Cleaning up existing PDF viewer');
-        pdfViewerRef.current.setDocument(null);
-        pdfViewerRef.current.cleanup?.();
+        try {
+          pdfViewerRef.current.setDocument(null);
+          pdfViewerRef.current.cleanup?.();
+        } catch (error) {
+          console.warn('Error during PDF viewer cleanup:', error);
+        }
         pdfViewerRef.current = null;
-        
-
       }
       
-      // Mark as initialized
+      // Mark as initialized and store current URL
       isInitializedRef.current = true;
+      currentUrlRef.current = url;
       
       const container = containerRef.current!;
       const viewer = container.querySelector(".pdfViewer")!;
@@ -214,14 +225,19 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
 
       eventBus.on('pagesinit', () => {
         console.log('Pages initialized');
-        setIsLoading(false);
-        setIsPdfSet(true);
+        if (mountedRef.current) {
+          setIsLoading(false);
+          setIsPdfSet(true);
+        }
         // Reset the in-progress flag when initialization is complete
         initializationInProgressRef.current = false;
-        pdfViewerRef.current!.scrollPageIntoView({
-          pageNumber: 1,
-          destArray: [null, { name: "XYZ" }, 0, 0, 1],
-        });
+        
+        if (pdfViewerRef.current) {
+          pdfViewerRef.current.scrollPageIntoView({
+            pageNumber: 1,
+            //destArray: [null, { name: "XYZ" }, 0, 0, 1],
+          });
+        }
 
         /*
         eventBus.dispatch("find", {
@@ -234,6 +250,17 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
 
 
 
+      });
+
+      // Add error handling for PDF loading
+      loadingTask.promise.catch((error: any) => {
+        console.error('PDF loading error:', error);
+        if (mountedRef.current) {
+          setError("Failed to load PDF");
+          setIsLoading(false);
+        }
+        initializationInProgressRef.current = false;
+        isInitializedRef.current = false;
       });
 
       /*
@@ -260,7 +287,15 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
 
     };
 
-    load();
+    load().catch((error) => {
+      console.error('PDF load error:', error);
+      if (mountedRef.current) {
+        setError("Failed to load PDF");
+        setIsLoading(false);
+      }
+      initializationInProgressRef.current = false;
+      isInitializedRef.current = false;
+    });
   }, [url]);
 
 
@@ -268,53 +303,108 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (renderTaskRef.current) {
-        renderTaskRef.current.cancel();
+      try {
+        if (renderTaskRef.current) {
+          renderTaskRef.current.cancel();
+        }
+        // Clean up PDF viewer
+        if (pdfViewerRef.current) {
+          pdfViewerRef.current.cleanup?.();
+          pdfViewerRef.current = null;
+        }
+      } catch (error) {
+        console.warn('Error during PDF viewer cleanup:', error);
+      } finally {
+        // Reset initialization flags on unmount
+        mountedRef.current = false;
+        isInitializedRef.current = false;
+        initializationInProgressRef.current = false;
+        currentUrlRef.current = "";
       }
-      // Clean up PDF viewer
-      if (pdfViewerRef.current) {
-        pdfViewerRef.current.cleanup?.();
-        pdfViewerRef.current = null;
-      }
-      // Reset initialization flags on unmount
-      isInitializedRef.current = false;
-      initializationInProgressRef.current = false;
     };
   }, []);
 
   // Reset initialization flags when URL changes
   useEffect(() => {
-    isInitializedRef.current = false;
-    initializationInProgressRef.current = false;
-    setIsPdfSet(false);
+    if (currentUrlRef.current !== url && mountedRef.current) {
+      isInitializedRef.current = false;
+      initializationInProgressRef.current = false;
+      setIsPdfSet(false);
+      setError("");
+      setChatMetadata(null);
+      setOverlayBoxes([]);
+    }
   }, [url]);
+
+
+  const checkSpanText = (spanText: string, pillChunkText: string) => {
+    return (spanText != '' && /[a-z]/.test(spanText) && pillChunkText.includes(spanText) || spanText.includes(pillChunkText));
+  }
 
   // Listen for chat metadata events
   useEffect(() => {
     const handleChatMetadata = (data: any) => {
-      console.log('PDFViewer received chat metadata:', data);
-      setChatMetadata(data);
-      const {metadata, relevantChunks, timestamp} = data;
-      const pillChunk = relevantChunks[0];
-      const pillChunkText = pillChunk.text.toLowerCase().trim();
+      try {
+        const {relevantChunks, metadata, timestamp, chunkId} = data;
+        console.log("currChunkId: ", chunkId);
+        console.log("currChunkIdRef.current: ", currChunkIdRef.current);
+        console.log("spans length: ", pillSpansRef.current.length);
+        if (chunkId == currChunkIdRef.current) {
+          currFindChunkIdxRef.current++;
+          currFindChunkIdxRef.current = currFindChunkIdxRef.current % pillSpansRef.current.length;
+          pillSpansRef.current[currFindChunkIdxRef.current].focus({ preventScroll: false });
+          console.log("currFindChunkIdxRef.current: ", currFindChunkIdxRef.current);
+          return;
+        }
+        console.log('PDFViewer received chat metadata:', data);
+        if (mountedRef.current) {
+          setChatMetadata(data);
+        }
+        
+        if (!relevantChunks || relevantChunks.length === 0) {
+          return;
+        }
+        
+        const pillChunk = relevantChunks[0];
+        const pillChunkText = pillChunk.text.toLowerCase().trim();
 
-      
-      const textLayers = document.querySelectorAll(".textLayer");
-      textLayers.forEach(layer => {
-        const spans = Array.from(layer.querySelectorAll("span"));
-        spans.forEach((span: HTMLElement) => {
-          const spanText = span.textContent?.toLowerCase().trim();
-          if (spanText != '' && pillChunkText.includes(spanText)) {
-            console.log("span.textContent: ", spanText);
-            console.log("pillChunkText: ", pillChunkText);
-            span.style.border = "1px solid red";
-            // Randomly add border-radius to make some look like circles
-            if (Math.random() > 0.5) {
-              span.style.borderRadius = "50%";
+        
+        const textLayers = document.querySelectorAll(".textLayer");
+        const newSpans: HTMLElement[] = [];
+        textLayers.forEach(layer => {
+          const spans = Array.from(layer.querySelectorAll("span"));
+          spans.forEach((span: HTMLElement, index: number) => {
+            const spanText = span.textContent?.toLowerCase().trim();
+            if (checkSpanText(spanText, pillChunkText)) {
+              /*
+              const lastSpan = index == 0 ? null : spans[index - 1];
+              const nextSpan = index == spans.length - 1 ? null : spans[index + 1];
+              const lastCheck = lastSpan ? checkSpanText(lastSpan.textContent?.toLowerCase().trim(), pillChunkText) : true;
+              const nextCheck = nextSpan ? checkSpanText(nextSpan.textContent?.toLowerCase().trim(), pillChunkText) : true;*/
+
+
+              console.log("span.textContent: ", spanText);
+              console.log("pillChunkText: ", pillChunkText);
+              span.style.border = "1px solid red";
+              span.setAttribute("tabindex", "-1");  // 👈 make it focusable
+              span.focus({ preventScroll: false }); 
+              // Randomly add border-radius to make some look like circles
+              if (Math.random() > 0.5) {
+                span.style.borderRadius = "50%";
+              }
+              newSpans.push(span);
+              console.log("newspans: ", newSpans);
+              
+
             }
-          }
+          });
         });
-      });
+        pillSpansRef.current = newSpans;
+        currChunkIdRef.current = chunkId;
+        currFindChunkIdxRef.current = 0;
+      } catch (error) {
+        console.error('Error handling chat metadata:', error);
+      }
   
 
 

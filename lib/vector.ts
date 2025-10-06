@@ -131,7 +131,7 @@ class PineconeVectorDB {
     }
   }
 
-  async search(queryEmbedding: number[], pdfId?: string, topK: number = 5): Promise<ChunkEmbedding[]> {
+  async search(queryEmbedding: number[], pdfId?: string, topK: number = 2): Promise<ChunkEmbedding[]> {
     const client = getPineconeClient();
     const index = client.index(this.indexName);
     
