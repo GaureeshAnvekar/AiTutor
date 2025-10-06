@@ -36,7 +36,7 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [autoSpeak, setAutoSpeak] = useState(true);
+  const [autoSpeak, setAutoSpeak] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const voiceControlsRef = useRef<VoiceControlsRef>(null);
@@ -149,7 +149,7 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handlePillClick = (chunk: ChunkMetadata) => {
+  const handlePillClick = (chunk: ChunkMetadata, chunkId: string | undefined) => {
     // Dispatch event to navigate to the specific chunk
     console.log("The chunk is: ", chunk);
     eventDispatcher.dispatch(EVENTS.CHAT_METADATA_RECEIVED, {
@@ -157,10 +157,11 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
       metadata: {
         pdfId: pdfId,
         totalRelevantChunks: 1,
-        searchQuery: `Navigate to page ${chunk.pageNumber}`,
+        searchQuery: `Navigate to page ${chunk.metadata.pageNumber}`,
         pageNumber: chunk.metadata.pageNumber,
       },
       timestamp: new Date(),
+      chunkId: chunkId,
     });
   };
 
@@ -218,6 +219,7 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
                             key={`${msg.id}-chunk-${index}`}
                             chunk={chunk}
                             onClick={handlePillClick}
+                            chunkId={`${msg.id}-chunk-${index}`}
                           />
                         ))}
                       </div>

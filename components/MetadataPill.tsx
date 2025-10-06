@@ -9,18 +9,20 @@ interface ChunkMetadata {
   bboxY?: number;
   bboxWidth?: number;
   bboxHeight?: number;
+  metadata?: any;
 }
 
 interface MetadataPillProps {
   chunk: ChunkMetadata;
-  onClick?: (chunk: ChunkMetadata) => void;
+  onClick?: (chunk: ChunkMetadata, chunkId: string | undefined) => void;
   className?: string;
+  chunkId?: string;
 }
 
-export default function MetadataPill({ chunk, onClick, className = "" }: MetadataPillProps) {
+export default function MetadataPill({ chunk, onClick, className = "", chunkId }: MetadataPillProps) {
   const handleClick = () => {
     if (onClick) {
-      onClick(chunk);
+      onClick(chunk, chunkId);
     }
   };
 
@@ -46,7 +48,7 @@ export default function MetadataPill({ chunk, onClick, className = "" }: Metadat
         cursor-pointer group
         ${className}
       `}
-      title={`Click to navigate to page ${chunk.pageNumber}\n${chunk.text}`}
+      title={`Click to navigate to page ${chunk.metadata.pageNumber}\n${chunk.text}`}
     >
       <div className="flex items-center gap-1.5">
         <MapPin className="h-3 w-3 text-blue-600" />
@@ -73,4 +75,5 @@ export default function MetadataPill({ chunk, onClick, className = "" }: Metadat
     </button>
   );
 }
+
 
