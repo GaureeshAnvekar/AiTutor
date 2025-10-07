@@ -346,6 +346,11 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
     const handleChatMetadata = (data: any) => {
       try {
         const {relevantChunks, metadata, timestamp, chunkId} = data;
+        pdfViewerRef.current.scrollPageIntoView({
+          pageNumber: metadata.pageNumber,
+        });
+
+        /*
         console.log("currChunkId: ", chunkId);
         console.log("currChunkIdRef.current: ", currChunkIdRef.current);
         console.log("spans length: ", pillSpansRef.current.length);
@@ -356,7 +361,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
           console.log("currFindChunkIdxRef.current: ", currFindChunkIdxRef.current);
           return;
         }
-        console.log('PDFViewer received chat metadata:', data);
+        console.log('PDFViewer received chat metadata:', data);*/
         if (mountedRef.current) {
           setChatMetadata(data);
         }
@@ -366,22 +371,54 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
         }
         
         const pillChunk = relevantChunks[0];
-        const pillChunkText = pillChunk.text.toLowerCase().trim();
+        let pillChunkText = pillChunk.text.toLowerCase().trim();
+        pillChunkText = pillChunkText.replace(/\s+/g, "");
 
         
         const textLayers = document.querySelectorAll(".textLayer");
         const newSpans: HTMLElement[] = [];
+
         textLayers.forEach(layer => {
-          const spans = Array.from(layer.querySelectorAll("span"));
-          spans.forEach((span: HTMLElement, index: number) => {
+          const spans = Array.from(layer.querySelectorAll('span[role="presentation"]'));
+          let currSection = "";
+          let startPtr = 0, endPtr = 0;
+          let found = false;
+
+          while (endPtr < spans.length) {
+            currSection += spans[endPtr].textContent?.replace(/\s+/g, "").toLowerCase().trim();
+            console.log("currSection: ", currSection);
+            console.log("pill text: ", pillChunkText);
+            if (currSection.includes(pillChunkText)) {
+              console.log("Match found:", currSection);
+              found = true;
+              break; // or handle match
+            } else endPtr++;
+          }
+
+          // trim excess spans
+          if (found) {
+            while (startPtr < spans.length) {
+              const removeLength = spans[startPtr].textContent?.replace(/\s+/g, "").toLowerCase().trim().length;
+              currSection = currSection.slice(removeLength);
+              if (!currSection.includes(pillChunkText)) break;
+              else startPtr++;
+            }
+
+            while (startPtr <= endPtr) {
+              spans[startPtr].style.border = "1px solid red";
+              spans[startPtr].setAttribute("tabindex", "-1");  // 👈 make it focusable
+              spans[startPtr].focus({ preventScroll: false }); 
+              // Randomly add border-radius to make some look like circles
+              if (Math.random() > 0.5) {
+                spans[startPtr].style.borderRadius = "50%";
+              }
+              startPtr++;
+            }
+          }
+          
+          /*spans.forEach((span: HTMLElement, index: number) => {
             const spanText = span.textContent?.toLowerCase().trim();
             if (checkSpanText(spanText, pillChunkText)) {
-              /*
-              const lastSpan = index == 0 ? null : spans[index - 1];
-              const nextSpan = index == spans.length - 1 ? null : spans[index + 1];
-              const lastCheck = lastSpan ? checkSpanText(lastSpan.textContent?.toLowerCase().trim(), pillChunkText) : true;
-              const nextCheck = nextSpan ? checkSpanText(nextSpan.textContent?.toLowerCase().trim(), pillChunkText) : true;*/
-
 
               console.log("span.textContent: ", spanText);
               console.log("pillChunkText: ", pillChunkText);
@@ -397,7 +434,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
               
 
             }
-          });
+          });*/
         });
         pillSpansRef.current = newSpans;
         currChunkIdRef.current = chunkId;
