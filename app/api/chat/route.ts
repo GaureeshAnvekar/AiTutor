@@ -17,14 +17,14 @@ async function sanitizeChunkText(originalQuery: string, chunkText: string, opena
 This was the chunk text received:
 ${chunkText}
 
-I want you to extract only the relevant text as it is without changing any format. Return only the relevant portions that relate to the original query, maintaining the exact original formatting and wording.`;
+I want you to extract only the relevant text as it is without changing any format. Return only the relevant portions that relate to the original query, maintaining the exact original formatting and wording. Do not remove parts in between. Remove parts only at the very beginning or at the end.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
           role: "system",
-          content: "You are a text extraction assistant. Extract only the relevant portions of the provided text that relate to the user's query, maintaining exact formatting and wording. Do not paraphrase or change the text - only extract the relevant parts. If there are parts in between to be removed, remove them, and concatenate the other relevant parts. If entire text is irrelevant, add the word BAD to your response."
+          content: "You are a text extraction assistant. Extract only the relevant portions of the provided text that relate to the user's query, maintaining exact formatting and wording. Do not paraphrase or change the text - only extract the relevant parts. If there are parts in between that seem irrelevant - DO NOT REMOVE THEM. If entire text is irrelevant, add the word BAD to your response."
         },
         {
           role: "user",

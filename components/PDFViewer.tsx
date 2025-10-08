@@ -375,19 +375,22 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
         pillChunkText = pillChunkText.replace(/\s+/g, "");
 
         
-        const textLayers = document.querySelectorAll(".textLayer");
+        const textLayers = document.querySelectorAll(`.page[data-page-number="${metadata.pageNumber}"] .textLayer`);
         const newSpans: HTMLElement[] = [];
 
         textLayers.forEach(layer => {
-          const spans = Array.from(layer.querySelectorAll('span[role="presentation"]'));
+          const spans = Array.from(layer.querySelectorAll('span[dir="ltr"]'));
           let currSection = "";
           let startPtr = 0, endPtr = 0;
           let found = false;
 
+          spans.forEach((span: Element) => {
+            console.log(span.textContent);
+          });
           while (endPtr < spans.length) {
             currSection += spans[endPtr].textContent?.replace(/\s+/g, "").toLowerCase().trim();
-            console.log("currSection: ", currSection);
-            console.log("pill text: ", pillChunkText);
+            //console.log("currSection: ", currSection);
+            //console.log("pill text: ", pillChunkText);
             if (currSection.includes(pillChunkText)) {
               console.log("Match found:", currSection);
               found = true;
@@ -405,7 +408,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
             }
 
             while (startPtr <= endPtr) {
-              spans[startPtr].style.border = "1px solid red";
+              spans[startPtr].style.border = "0.7px solid red";
               spans[startPtr].setAttribute("tabindex", "-1");  // 👈 make it focusable
               spans[startPtr].focus({ preventScroll: false }); 
               // Randomly add border-radius to make some look like circles
