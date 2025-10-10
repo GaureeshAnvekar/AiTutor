@@ -5,7 +5,8 @@ import {
   generateEmbedding, 
   upsertChunksToVectorDB, 
   ChunkEmbedding,
-  deleteAllChunksForPDF 
+  deleteAllChunksForPDF,
+  deleteAllChunksFromVectorDB 
 } from "@/lib/vector";
 
 // Use pdfjs-dist for server-side PDF processing with bounding boxes
@@ -64,6 +65,8 @@ export interface ChunkingResult {
 
 export async function extractAndSaveChunks(pdfId: string): Promise<ChunkingResult> {
   try {
+
+    //await deleteAllChunksFromVectorDB(); // remove this later
     // Get PDF metadata from database
     const pdf = await prisma.pDF.findUnique({
       where: { id: pdfId },

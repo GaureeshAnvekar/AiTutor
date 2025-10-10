@@ -218,6 +218,33 @@ class PineconeVectorDB {
       throw error;
     }
   }
+
+  async deleteAll(): Promise<void> {
+    const client = getPineconeClient();
+    
+    try {
+      // First check if the index exists
+      const indexList = await client.listIndexes();
+      const indexExists = indexList.indexes?.some(index => index.name === this.indexName);
+      
+      if (!indexExists) {
+        console.log(`Index ${this.indexName} does not exist, nothing to delete`);
+        return;
+      }
+      
+      const index = client.index(this.indexName);
+      await index.deleteAll();
+      console.log(`Successfully deleted all chunks from Pinecone index ${this.indexName}`);
+    } catch (error: any) {
+      // Handle the case where index exists but isn't ready or returns 404
+      if (error.name === 'PineconeNotFoundError' || error.message?.includes('404')) {
+        console.log(`Index ${this.indexName} not accessible (may be initializing), skipping delete`);
+        return;
+      }
+      console.error('Error deleting all chunks from Pinecone:', error);
+      throw error;
+    }
+  }
 }
 
 // Global vector database instance
@@ -316,9 +343,22 @@ export async function deleteAllChunksForPDF(pdfId: string): Promise<void> {
   
   try {
     await vectorDB.deleteByPdfId(pdfId);
+    await deleteAllChunksFromVectorDB();
     console.log(`Successfully deleted all chunks for PDF ${pdfId} from vector database`);
   } catch (error) {
     console.error('Error deleting PDF chunks from vector database:', error);
     throw new Error('Failed to delete PDF chunks from vector database');
+  }
+}
+
+export async function deleteAllChunksFromVectorDB(): Promise<void> {
+  const vectorDB = await getVectorDB();
+  
+  try {
+    await vectorDB.deleteAll();
+    console.log('Successfully deleted all chunks from vector database');
+  } catch (error) {
+    console.error('Error deleting all chunks from vector database:', error);
+    throw new Error('Failed to delete all chunks from vector database');
   }
 }

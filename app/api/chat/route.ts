@@ -24,7 +24,10 @@ I want you to extract only the relevant text as it is without changing any forma
       messages: [
         {
           role: "system",
-          content: "You are a text extraction assistant. Extract only the relevant portions of the provided text that relate to the user's query, maintaining exact formatting and wording. Do not paraphrase or change the text - only extract the relevant parts. If there are parts in between that seem irrelevant - DO NOT REMOVE THEM. If entire text is irrelevant, add the word BAD to your response."
+          content: `You are a text removal assistant. Remove only parts either at the beginning or at the end that are irrelevant to the original query only if it is absolutely necessary. Do not remove parts in between even if they are irrelevant. If entire text is irrelevant, add the word BAD to your response. 
+          Eg 1: Query: What is his experience at company A.
+          Chunk text: "He worked at company A for 2 years. He did build a product for company A. He then worked at company B for 1 year. He then worked at company C for 3 years."
+          Response: "He worked at company A for 2 years. He did build a product for company A."`
         },
         {
           role: "user",
