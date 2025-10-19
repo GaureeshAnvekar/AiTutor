@@ -28,9 +28,10 @@ interface Message {
 interface ChatPanelProps {
   pdfId: string;
   currentPage: number;
+  chatId?: string;
 }
 
-export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
+export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,12 +39,44 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const voiceControlsRef = useRef<VoiceControlsRef>(null);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Load chat history when chatId is provided
+  useEffect(() => {
+    if (chatId) {
+      loadChatHistory();
+    }
+  }, [chatId]);
+
+  const loadChatHistory = async () => {
+    if (!chatId) return;
+    
+    setIsLoadingHistory(true);
+    try {
+      const response = await fetch(`/api/chats/${chatId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const transformedMessages = data.chat.messages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+          relevantChunks: [], // We don't store relevant chunks in the database
+        }));
+        setMessages(transformedMessages);
+      }
+    } catch (error) {
+      console.error("Error loading chat history:", error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -169,7 +202,12 @@ export default function ChatPanel({ pdfId, currentPage }: ChatPanelProps) {
     <div className="flex flex-col h-full">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 ? (
+        {isLoadingHistory ? (
+          <div className="text-center text-gray-500 py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-sm">Loading conversation history...</p>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             <p className="text-lg font-medium mb-2">Welcome to your AI Tutor!</p>
             <p className="text-sm">Ask me anything about your PDF document.</p>

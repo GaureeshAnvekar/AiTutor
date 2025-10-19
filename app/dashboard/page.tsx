@@ -8,8 +8,8 @@ import { signOut } from "next-auth/react";
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [pdfs, setPdfs] = useState([]);
-  const [chats, setChats] = useState([]);
+  const [pdfs, setPdfs] = useState<any[]>([]);
+  const [chats, setChats] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -27,10 +27,21 @@ export default function DashboardPage() {
 
   const loadUserData = async () => {
     try {
-      // This would load user's PDFs and chats from the database
-      // For now, we'll use placeholder data
-      setPdfs([]);
-      setChats([]);
+      // Load user's PDFs and chats from the database
+      const [pdfsResponse, chatsResponse] = await Promise.all([
+        fetch("/api/user/pdfs"),
+        fetch("/api/user/chats"),
+      ]);
+
+      if (pdfsResponse.ok) {
+        const pdfsData = await pdfsResponse.json();
+        setPdfs(pdfsData.pdfs);
+      }
+
+      if (chatsResponse.ok) {
+        const chatsData = await chatsResponse.json();
+        setChats(chatsData.chats);
+      }
     } catch (error) {
       console.error("Error loading user data:", error);
     } finally {
@@ -124,7 +135,42 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {/* PDF list would go here */}
+                {pdfs.map((pdf) => (
+                  <div key={pdf.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-gray-900 truncate">
+                          {pdf.originalName}
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {(pdf.fileSize / 1024 / 1024).toFixed(2)} MB • {pdf.pageCount || 0} pages
+                        </p>
+                        {pdf.lastChat && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Last chat: {new Date(pdf.lastChat.updatedAt).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2 ml-4">
+                        {pdf.lastChat ? (
+                          <button
+                            onClick={() => router.push(`/pdfs/${pdf.id}?chat=${pdf.lastChat.id}`)}
+                            className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Continue Chat
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => router.push(`/pdfs/${pdf.id}`)}
+                            className="text-xs bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700 transition-colors"
+                          >
+                            Start Chat
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -141,7 +187,34 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {/* Chat list would go here */}
+                {chats.map((chat) => (
+                  <div key={chat.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-gray-900 truncate">
+                          {chat.title}
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {chat.pdfName} • {chat.messageCount} messages
+                        </p>
+                        {chat.lastMessage && (
+                          <p className="text-xs text-gray-600 mt-1 truncate">
+                            {chat.lastMessage.role === "user" ? "You: " : "AI: "}
+                            {chat.lastMessage.content.substring(0, 50)}...
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2 ml-4">
+                        <button
+                          onClick={() => router.push(`/pdfs/${chat.pdfId}?chat=${chat.id}`)}
+                          className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors"
+                        >
+                          Continue
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
