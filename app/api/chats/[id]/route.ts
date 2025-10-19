@@ -40,6 +40,9 @@ export async function GET(
         },
         messages: {
           orderBy: { createdAt: "asc" }, // Get messages in chronological order
+          include: {
+            relevantChunks: true,
+          } as any,
         },
       },
     });
@@ -49,12 +52,22 @@ export async function GET(
     }
 
     // Transform messages for frontend
-    const transformedMessages = chat.messages.map(message => ({
+    const transformedMessages = (chat as any).messages.map((message: any) => ({
       id: message.id,
       role: message.role,
       content: message.content,
       timestamp: message.createdAt,
       annotations: message.annotations,
+      relevantChunks: message.relevantChunks.map((chunk: any) => ({
+        pageNumber: chunk.pageNumber,
+        text: chunk.text,
+        similarity: chunk.similarity,
+        bboxX: chunk.bboxX,
+        bboxY: chunk.bboxY,
+        bboxWidth: chunk.bboxWidth,
+        bboxHeight: chunk.bboxHeight,
+        metadata: chunk.metadata ? JSON.parse(chunk.metadata) : null,
+      })),
     }));
 
     return NextResponse.json({
@@ -62,7 +75,7 @@ export async function GET(
         id: chat.id,
         title: chat.title,
         pdfId: chat.pdfId,
-        pdfName: chat.pdf?.originalName || "Unknown PDF",
+        pdfName: (chat as any).pdf?.originalName || "Unknown PDF",
         createdAt: chat.createdAt,
         updatedAt: chat.updatedAt,
         messages: transformedMessages,

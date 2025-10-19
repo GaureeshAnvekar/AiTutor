@@ -53,6 +53,7 @@ model Message {
   content   String
   annotations String?
   createdAt DateTime @default(now())
+  relevantChunks MessageRelevantChunk[]
 }
 
 model PDFChunk {
@@ -72,4 +73,19 @@ model PDFChunk {
   updatedAt   DateTime @updatedAt
   
   @@unique([pdfId, pageNumber, chunkIndex])
+}
+
+model MessageRelevantChunk {
+  id          String   @id @default(cuid())
+  messageId   String
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pageNumber  Int
+  text        String
+  similarity  Float?
+  bboxX       Float?
+  bboxY       Float?
+  bboxWidth   Float?
+  bboxHeight  Float?
+  metadata    String?  // JSON string for additional metadata
+  createdAt   DateTime @default(now())
 }
