@@ -1,6 +1,6 @@
 "use client";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, FileText, MessageSquare, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
@@ -19,6 +19,7 @@ interface PDFData {
 export default function PDFPage({ params }: { params: { id: string } }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [pdfData, setPdfData] = useState<PDFData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -207,6 +208,7 @@ export default function PDFPage({ params }: { params: { id: string } }) {
               <ChatPanel 
                 pdfId={params.id}
                 currentPage={currentPage}
+                chatId={searchParams.get('chat') || undefined}
               />
             </div>
           </div>
