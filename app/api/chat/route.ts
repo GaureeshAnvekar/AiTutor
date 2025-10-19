@@ -226,13 +226,30 @@ Note: This response is based on the most relevant sections of the PDF that match
     const aiResponse = completion.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response.";
 
     // Save AI response
-    await prisma.message.create({
+    const savedMessage = await prisma.message.create({
       data: {
         chatId: chat.id,
         role: "assistant",
         content: aiResponse,
       },
     });
+
+    // Save relevant chunks for the message
+    if (searchResults.length > 0) {
+      await (prisma as any).messageRelevantChunk.createMany({
+        data: searchResults.map(chunk => ({
+          messageId: savedMessage.id,
+          pageNumber: chunk.metadata.pageNumber,
+          text: chunk.text,
+          similarity: chunk.similarity,
+          bboxX: chunk.bboxX,
+          bboxY: chunk.bboxY,
+          bboxWidth: chunk.bboxWidth,
+          bboxHeight: chunk.bboxHeight,
+          metadata: JSON.stringify(chunk.metadata),
+        })),
+      });
+    }
 
     // Update chat timestamp
     await prisma.chat.update({

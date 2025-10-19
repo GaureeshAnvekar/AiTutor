@@ -67,7 +67,7 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
           role: msg.role,
           content: msg.content,
           timestamp: new Date(msg.timestamp),
-          relevantChunks: [], // We don't store relevant chunks in the database
+          relevantChunks: msg.relevantChunks || [], // Use loaded relevant chunks
         }));
         setMessages(transformedMessages);
       }
