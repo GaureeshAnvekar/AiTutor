@@ -91,15 +91,12 @@ export async function extractImageBBoxes(page: any) {
         const imageName = args[0];
         const bbox = getBBoxFromTransform(currentTransform);
 
-        // We *try* to get the bytes, but this may fail if resources aren’t loaded
+        // We *try* to get the bytes, but this may fail if resources aren't loaded
         let imageBytes = null;
         try {
-          const xObject = await getXObjectFromPage(page, imageName);
-          if (xObject?.getBytes) {
-            imageBytes = xObject.getBytes();
-          }
+          imageBytes = await getXObjectFromPage(page, imageName);
         } catch (e) {
-          // non-fatal
+          console.warn(`Failed to get image bytes for ${imageName}:`, e);
         }
 
         results.push({ imageName, bbox, imageBytes });
@@ -110,7 +107,21 @@ export async function extractImageBBoxes(page: any) {
       case OPS.paintInlineImageXObjectGroup: {
         const bbox = getBBoxFromTransform(currentTransform);
         const img = args?.[0];
-        const imageBytes = img?.imageData ? img.imageData.data : null;
+        let imageBytes = null;
+        
+        try {
+          // Try different ways to get the image data
+          if (img?.imageData?.data) {
+            imageBytes = img.imageData.data;
+          } else if (img?.data) {
+            imageBytes = img.data;
+          } else if (img?.getBytes) {
+            imageBytes = img.getBytes();
+          }
+        } catch (e) {
+          console.warn(`Failed to get inline image bytes:`, e);
+        }
+        
         results.push({ imageName: "inline", bbox, imageBytes });
         break;
       }
@@ -127,11 +138,96 @@ export async function extractImageBBoxes(page: any) {
  * Try to get image XObject bytes if available
  */
 async function getXObjectFromPage(page: any, name: any) {
-  await page.objs.ensureObj(name);
-  await page.commonObjs.ensureObj(name);
-  const xObject = await page.getXObject(name);
-  const xObjects = page._pdfPage?.commonObjs?._objs || {};
-  return xObjects[name] || null;
+  try {
+    // PDF.js loads objects asynchronously, so we need to wait for them
+    // The get method can take a callback to wait for resolution
+    
+    return new Promise((resolve) => {
+      let resolved = false;
+      
+      // Try common objects first (for shared objects starting with "g_")
+      if (name.startsWith("g_")) {
+        page.commonObjs.get(name, (imageObj: any) => {
+          if (!resolved && imageObj) {
+            resolved = true;
+            resolve(extractImageData(imageObj, name));
+          }
+        });
+      } else {
+        // Try page objects
+        page.objs.get(name, (imageObj: any) => {
+          if (!resolved && imageObj) {
+            resolved = true;
+            resolve(extractImageData(imageObj, name));
+          }
+        });
+      }
+      
+      // Fallback: try both regardless of name prefix
+      setTimeout(() => {
+        if (!resolved) {
+          // Try commonObjs
+          page.commonObjs.get(name, (imageObj: any) => {
+            if (!resolved && imageObj) {
+              resolved = true;
+              resolve(extractImageData(imageObj, name));
+            }
+          });
+          
+          // Try objs
+          page.objs.get(name, (imageObj: any) => {
+            if (!resolved && imageObj) {
+              resolved = true;
+              resolve(extractImageData(imageObj, name));
+            }
+          });
+          
+          // Final timeout
+          setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              resolve(null);
+            }
+          }, 1000);
+        }
+      }, 100);
+    });
+    
+  } catch (error) {
+    console.warn(`Failed to get XObject ${name}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Extract image data from an image object
+ */
+function extractImageData(imageObj: any, name: string): any {
+  try {
+    // The image object should have the raw data
+    if (imageObj.data) {
+      return imageObj.data;
+    }
+    // Some objects might have imageData property
+    if (imageObj.imageData && imageObj.imageData.data) {
+      return imageObj.imageData.data;
+    }
+    // Try getImageData method if available
+    if (imageObj.getImageData) {
+      try {
+        const imageData = imageObj.getImageData();
+        if (imageData && imageData.data) {
+          return imageData.data;
+        }
+      } catch (e) {
+        console.warn(`Failed to get image data for ${name}:`, e);
+      }
+    }
+    return null;
+  } catch (error) {
+    console.warn(`Failed to extract image data for ${name}:`, error);
+    return null;
+  }
 }
 
 /**
