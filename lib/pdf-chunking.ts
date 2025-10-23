@@ -56,6 +56,112 @@ function chunkByLines(items: any[], maxChars = 500, lineGap = 5) {
   return chunks;
 }
 
+
+/**
+ * Extract bounding boxes (and optionally raw bytes) of images in a PDF page.
+ */
+export async function extractImageBBoxes(page: any) {
+  const OPS = pdfjsLib.OPS;
+  const opList = await page.getOperatorList();
+  const results = [];
+
+  const ctmStack = [];
+  let currentTransform = [1, 0, 0, 1, 0, 0]; // identity matrix
+
+  for (let i = 0; i < opList.fnArray.length; i++) {
+    const fn = opList.fnArray[i];
+    const args = opList.argsArray[i];
+
+    switch (fn) {
+      case OPS.save:
+        ctmStack.push([...currentTransform]);
+        break;
+
+      case OPS.restore:
+        currentTransform = ctmStack.pop() || [1, 0, 0, 1, 0, 0];
+        break;
+
+      case OPS.transform:
+        // multiply current transform matrix
+        const m = args;
+        currentTransform = multiplyTransform(currentTransform, m);
+        break;
+
+      case OPS.paintImageXObject: {
+        const imageName = args[0];
+        const bbox = getBBoxFromTransform(currentTransform);
+
+        // We *try* to get the bytes, but this may fail if resources aren’t loaded
+        let imageBytes = null;
+        try {
+          const xObject = await getXObjectFromPage(page, imageName);
+          if (xObject?.getBytes) {
+            imageBytes = xObject.getBytes();
+          }
+        } catch (e) {
+          // non-fatal
+        }
+
+        results.push({ imageName, bbox, imageBytes });
+        break;
+      }
+
+      case OPS.paintInlineImageXObject:
+      case OPS.paintInlineImageXObjectGroup: {
+        const bbox = getBBoxFromTransform(currentTransform);
+        const img = args?.[0];
+        const imageBytes = img?.imageData ? img.imageData.data : null;
+        results.push({ imageName: "inline", bbox, imageBytes });
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Try to get image XObject bytes if available
+ */
+async function getXObjectFromPage(page: any, name: any) {
+  await page.objs.ensureObj(name);
+  await page.commonObjs.ensureObj(name);
+  const xObject = await page.getXObject(name);
+  const xObjects = page._pdfPage?.commonObjs?._objs || {};
+  return xObjects[name] || null;
+}
+
+/**
+ * Combine two 3x2 transform matrices
+ */
+function multiplyTransform(m1: any, m2: any) {
+  const [a1, b1, c1, d1, e1, f1] = m1;
+  const [a2, b2, c2, d2, e2, f2] = m2;
+  return [
+    a1 * a2 + c1 * b2,
+    b1 * a2 + d1 * b2,
+    a1 * c2 + c1 * d2,
+    b1 * c2 + d1 * d2,
+    a1 * e2 + c1 * f2 + e1,
+    b1 * e2 + d1 * f2 + f1,
+  ];
+}
+
+/**
+ * Derive bounding box (axis-aligned) from transform
+ */
+function getBBoxFromTransform(transform: any) {
+  const [a, b, c, d, e, f] = transform;
+  const width = Math.sqrt(a * a + c * c);
+  const height = Math.sqrt(b * b + d * d);
+  return { x: e, y: f, width, height };
+}
+
+
+
 export interface ChunkingResult {
   success: boolean;
   totalChunks: number;
@@ -65,7 +171,7 @@ export interface ChunkingResult {
 
 export async function extractAndSaveChunks(pdfId: string): Promise<ChunkingResult> {
   try {
-
+    const OPS = pdfjsLib.OPS;
     //await deleteAllChunksFromVectorDB(); // remove this later
     // Get PDF metadata from database
     const pdf = await prisma.pDF.findUnique({
@@ -107,6 +213,8 @@ export async function extractAndSaveChunks(pdfId: string): Promise<ChunkingResul
       for (let i = 1; i <= pdfDoc.numPages; i++) {
         const page = await pdfDoc.getPage(i);
         const textContent = await page.getTextContent();
+
+        extractImageBBoxes(page);
         
         // Use semantic chunking function that preserves bounding boxes
         const chunks = chunkByLines(textContent.items, 500);
