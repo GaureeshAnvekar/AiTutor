@@ -259,10 +259,18 @@ Note: This response is based on the most relevant sections of the PDF that match
 
     return NextResponse.json({
       text: aiResponse,
-      relevantChunks: searchResults,//relevantChunks, // Include relevant chunks found by semantic search
+      relevantChunks: searchResults.map(chunk => ({
+        ...chunk,
+        type: chunk.metadata.type, // Include type field in the response
+        metadata: {
+          ...chunk.metadata,
+          pageNumber: chunk.metadata.pageNumber,
+          type: chunk.metadata.type
+        }
+      })),
       metadata: {
         pdfId: pdfId,
-        totalRelevantChunks: relevantChunks.length,
+        totalRelevantChunks: searchResults.length,
         totalPages: pdf?.pageCount || 0,
         searchQuery: message
       }

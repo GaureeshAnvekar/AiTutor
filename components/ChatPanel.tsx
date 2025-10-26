@@ -15,6 +15,7 @@ interface ChunkMetadata {
   bboxWidth?: number;
   bboxHeight?: number;
   metadata?: any;
+  type?: string; // "text" or "image"
 }
 
 interface Message {
@@ -185,13 +186,18 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
   const handlePillClick = (chunk: ChunkMetadata, chunkId: string | undefined) => {
     // Dispatch event to navigate to the specific chunk
     console.log("The chunk is: ", chunk);
+    const chunkType = chunk.type || chunk.metadata?.type || "text";
     eventDispatcher.dispatch(EVENTS.CHAT_METADATA_RECEIVED, {
-      relevantChunks: [chunk],
+      relevantChunks: [{
+        ...chunk,
+        type: chunkType
+      }],
       metadata: {
         pdfId: pdfId,
         totalRelevantChunks: 1,
         searchQuery: `Navigate to page ${chunk.metadata.pageNumber}`,
         pageNumber: chunk.metadata.pageNumber,
+        type: chunkType
       },
       timestamp: new Date(),
       chunkId: chunkId,

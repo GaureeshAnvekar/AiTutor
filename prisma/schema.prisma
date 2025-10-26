@@ -71,6 +71,7 @@ model PDFChunk {
   vectorId    String?  // For vector database reference
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  type        String
   
   @@unique([pdfId, pageNumber, chunkIndex])
 }
