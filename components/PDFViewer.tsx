@@ -40,7 +40,6 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
     height: number;
     pageNumber: number;
     type: string; // "text" or "image"
-    timestamp: number; // For auto-disappear functionality
   }>>([]);
   const pillSpansRef = useRef<Array<HTMLElement>>([]);
   const currChunkIdRef = useRef<string>("");
@@ -344,30 +343,6 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
     return (spanText != '' && /[a-z]/.test(spanText) && pillChunkText.includes(spanText) || spanText.includes(pillChunkText));
   }
 
-  // Auto-disappear overlay boxes after 5 seconds
-  useEffect(() => {
-    if (overlayBoxes.length === 0) return;
-
-    const timer = setTimeout(() => {
-      setOverlayBoxes([]);
-    }, 5000); // 5 seconds
-
-    return () => clearTimeout(timer);
-  }, [overlayBoxes]);
-
-  // Update overlay boxes for countdown display
-  useEffect(() => {
-    if (overlayBoxes.length === 0) return;
-
-    const interval = setInterval(() => {
-      setOverlayBoxes(prevBoxes => {
-        const now = Date.now();
-        return prevBoxes.filter(box => (now - box.timestamp) < 5000);
-      });
-    }, 100); // Update every 100ms for smooth countdown
-
-    return () => clearInterval(interval);
-  }, [overlayBoxes]);
 
   // Insert overlay boxes into their respective PDF pages
   useEffect(() => {
@@ -382,9 +357,6 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
             const page = await pdfDoc.getPage(box.pageNumber);
             const viewport = page.getViewport({ scale: 1.0 });
             const y = viewport.height - (box.y + box.height);
-            const timeElapsed = Date.now() - box.timestamp;
-            const timeRemaining = Math.max(0, 5000 - timeElapsed);
-            const opacity = Math.max(0.3, timeRemaining / 5000);
             
             const overlayDiv = document.createElement('div');
             overlayDiv.setAttribute('data-overlay-id', box.id);
@@ -394,12 +366,11 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
             overlayDiv.style.width = `${box.width + 30}px`;
             overlayDiv.style.height = `${box.height + 30}px`;
             overlayDiv.style.boxShadow = box.type === "image" ? '0 0 0 5px rgba(239, 68, 68, 0.5)' : '0 0 0 5px rgba(59, 130, 246, 0.5)';
-            overlayDiv.style.opacity = `${opacity}`;
             overlayDiv.style.zIndex = '10';
             
             const labelDiv = document.createElement('div');
             labelDiv.className = `absolute -top-6 left-0 text-white text-xs px-1 py-0.5 rounded text-nowrap ${box.type === "image" ? "bg-red-500" : "bg-blue-500"}`;
-            labelDiv.textContent = `${box.type === "image" ? "Image" : "Text"} - Page ${box.pageNumber} (${Math.ceil(timeRemaining / 1000)}s)`;
+            labelDiv.textContent = `${box.type === "image" ? "Image" : "Text"} - Page ${box.pageNumber}`;
             
             overlayDiv.appendChild(labelDiv);
             pageElement.appendChild(overlayDiv);
@@ -409,60 +380,25 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
               if (pageElement) {
                 pageElement.scrollIntoView({ 
                   behavior: 'smooth', 
-                  block: 'center',
+                  block: 'start',
                   inline: 'nearest'
                 });
               }
-            }, 50);
+            }, 10);
           }
         }
       });
     };
 
     insertOverlays();
-    
-    // Update overlays periodically to update countdown and opacity
-    const updateInterval = setInterval(() => {
-      overlayBoxes.forEach(box => {
-        const overlay = document.querySelector(`[data-overlay-id="${box.id}"]`);
-        if (overlay) {
-          const timeElapsed = Date.now() - box.timestamp;
-          const timeRemaining = Math.max(0, 5000 - timeElapsed);
-          const opacity = Math.max(0, timeRemaining / 5000);
-          
-          (overlay as HTMLElement).style.opacity = `${opacity}`;
-          const label = overlay.querySelector('div');
-          if (label) {
-            label.textContent = `${box.type === "image" ? "Image" : "Text"} - Page ${box.pageNumber} (${Math.ceil(timeRemaining / 1000)}s)`;
-          }
-        }
-      });
-      
-      // Remove expired overlays
-      setOverlayBoxes(prevBoxes => {
-        const now = Date.now();
-        const validBoxes = prevBoxes.filter(box => (now - box.timestamp) < 5000);
-        
-        // Remove DOM elements for expired boxes
-        prevBoxes.filter(box => (now - box.timestamp) >= 5000).forEach(box => {
-          const overlay = document.querySelector(`[data-overlay-id="${box.id}"]`);
-          if (overlay) {
-            overlay.remove();
-          }
-        });
-        
-        return validBoxes;
-      });
-    }, 100);
-
-    return () => clearInterval(updateInterval);
-  }, [overlayBoxes]);
+  }, [overlayBoxes, pdfDoc]);
 
   // Listen for chat metadata events
   useEffect(() => {
     const handleChatMetadata = (data: any) => {
       try {
         const {relevantChunks, metadata, timestamp, chunkId} = data;
+        
         pdfViewerRef.current.scrollPageIntoView({
           pageNumber: metadata.pageNumber,
         });
@@ -508,8 +444,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
               width: pillChunk.metadata.bboxWidth,
               height: pillChunk.metadata.bboxHeight,
               pageNumber: pillChunk.metadata.pageNumber || 1,
-              type: "image",
-              timestamp: Date.now()
+              type: "image"
             };
             
             console.log('Created image overlay box:', overlayBox);
