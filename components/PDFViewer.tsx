@@ -45,7 +45,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
   const pillSpansRef = useRef<Array<HTMLElement>>([]);
   const currChunkIdRef = useRef<string>("");
   const currFindChunkIdxRef = useRef(0);
-
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
   /*
   const renderPage = useCallback(async (pdf: any, pageNum: number) => {
     try {
@@ -220,6 +220,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
 
       const loadingTask = pdfjsLib.getDocument(url);
       const pdfDoc = await loadingTask.promise;
+      setPdfDoc(pdfDoc);
 
       console.log("Setting document to PDF viewer");
       pdfViewer.setDocument(pdfDoc);
@@ -368,6 +369,95 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
     return () => clearInterval(interval);
   }, [overlayBoxes]);
 
+  // Insert overlay boxes into their respective PDF pages
+  useEffect(() => {
+    if (overlayBoxes.length === 0) return;
+
+    const insertOverlays = () => {
+      overlayBoxes.forEach(async box => {
+        const pageElement = document.querySelector(`.page[data-page-number="${box.pageNumber}"]`) as HTMLElement;
+        if (pageElement) {
+          const existingOverlay = pageElement.querySelector(`[data-overlay-id="${box.id}"]`);
+          if (!existingOverlay) {
+            const page = await pdfDoc.getPage(box.pageNumber);
+            const viewport = page.getViewport({ scale: 1.0 });
+            const y = viewport.height - (box.y + box.height);
+            const timeElapsed = Date.now() - box.timestamp;
+            const timeRemaining = Math.max(0, 5000 - timeElapsed);
+            const opacity = Math.max(0.3, timeRemaining / 5000);
+            
+            const overlayDiv = document.createElement('div');
+            overlayDiv.setAttribute('data-overlay-id', box.id);
+            overlayDiv.className = `absolute pointer-events-none border-2 ${box.type === "image" ? "border-red-500 bg-red-100 bg-opacity-20" : "border-blue-500 bg-blue-100 bg-opacity-20"}`;
+            overlayDiv.style.left = `${box.x + 20}px`;
+            overlayDiv.style.top = `${y + 20}px`;
+            overlayDiv.style.width = `${box.width + 30}px`;
+            overlayDiv.style.height = `${box.height + 30}px`;
+            overlayDiv.style.boxShadow = box.type === "image" ? '0 0 0 5px rgba(239, 68, 68, 0.5)' : '0 0 0 5px rgba(59, 130, 246, 0.5)';
+            overlayDiv.style.opacity = `${opacity}`;
+            overlayDiv.style.zIndex = '10';
+            
+            const labelDiv = document.createElement('div');
+            labelDiv.className = `absolute -top-6 left-0 text-white text-xs px-1 py-0.5 rounded text-nowrap ${box.type === "image" ? "bg-red-500" : "bg-blue-500"}`;
+            labelDiv.textContent = `${box.type === "image" ? "Image" : "Text"} - Page ${box.pageNumber} (${Math.ceil(timeRemaining / 1000)}s)`;
+            
+            overlayDiv.appendChild(labelDiv);
+            pageElement.appendChild(overlayDiv);
+            
+            // Scroll the page element into view
+            setTimeout(() => {
+              if (pageElement) {
+                pageElement.scrollIntoView({ 
+                  behavior: 'smooth', 
+                  block: 'center',
+                  inline: 'nearest'
+                });
+              }
+            }, 50);
+          }
+        }
+      });
+    };
+
+    insertOverlays();
+    
+    // Update overlays periodically to update countdown and opacity
+    const updateInterval = setInterval(() => {
+      overlayBoxes.forEach(box => {
+        const overlay = document.querySelector(`[data-overlay-id="${box.id}"]`);
+        if (overlay) {
+          const timeElapsed = Date.now() - box.timestamp;
+          const timeRemaining = Math.max(0, 5000 - timeElapsed);
+          const opacity = Math.max(0, timeRemaining / 5000);
+          
+          (overlay as HTMLElement).style.opacity = `${opacity}`;
+          const label = overlay.querySelector('div');
+          if (label) {
+            label.textContent = `${box.type === "image" ? "Image" : "Text"} - Page ${box.pageNumber} (${Math.ceil(timeRemaining / 1000)}s)`;
+          }
+        }
+      });
+      
+      // Remove expired overlays
+      setOverlayBoxes(prevBoxes => {
+        const now = Date.now();
+        const validBoxes = prevBoxes.filter(box => (now - box.timestamp) < 5000);
+        
+        // Remove DOM elements for expired boxes
+        prevBoxes.filter(box => (now - box.timestamp) >= 5000).forEach(box => {
+          const overlay = document.querySelector(`[data-overlay-id="${box.id}"]`);
+          if (overlay) {
+            overlay.remove();
+          }
+        });
+        
+        return validBoxes;
+      });
+    }, 100);
+
+    return () => clearInterval(updateInterval);
+  }, [overlayBoxes]);
+
   // Listen for chat metadata events
   useEffect(() => {
     const handleChatMetadata = (data: any) => {
@@ -424,16 +514,6 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
             
             console.log('Created image overlay box:', overlayBox);
             setOverlayBoxes([overlayBox]);
-            
-            // Scroll to the overlay box position
-            setTimeout(() => {
-              if (pdfViewerRef.current) {
-                pdfViewerRef.current.scrollPageIntoView({
-                  pageNumber: pillChunk.metadata.pageNumber || 1,
-                  destArray: [null, { name: "XYZ" }, pillChunk.metadata.bboxX, pillChunk.metadata.bboxY, 1],
-                });
-              }
-            }, 100); // Small delay to ensure PDF is rendered
           }
           return; // Skip text highlighting for image chunks
         }
@@ -630,44 +710,6 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
         </div>
       )}
 
-      {/* Overlay boxes for highlighting relevant sections */}
-      <div className="absolute inset-0 pointer-events-none z-30">
-        {overlayBoxes.map((box) => {
-          const timeElapsed = Date.now() - box.timestamp;
-          const timeRemaining = Math.max(0, 5000 - timeElapsed);
-          const opacity = Math.max(0.3, timeRemaining / 5000); // Fade out over time
-          
-          return (
-            <div
-              key={box.id}
-              className={`absolute pointer-events-none border-2 transition-opacity duration-300 ${
-                box.type === "image" 
-                  ? "border-red-500 bg-red-100 bg-opacity-20" 
-                  : "border-blue-500 bg-blue-100 bg-opacity-20"
-              }`}
-              style={{
-                left: `${box.x}px`,
-                top: `${box.y - 600}px`,
-                width: `${box.width}px`,
-                height: `${box.height}px`,
-                boxShadow: box.type === "image" 
-                  ? '0 0 0 1px rgba(239, 68, 68, 0.5)' 
-                  : '0 0 0 1px rgba(59, 130, 246, 0.5)',
-                opacity: opacity
-              }}
-            >
-              <div className={`absolute -top-6 left-0 text-white text-xs px-1 py-0.5 rounded text-nowrap ${
-                box.type === "image" ? "bg-red-500" : "bg-blue-500"
-              }`}>
-                {box.type === "image" ? "Image" : "Text"} - Page {box.pageNumber}
-                <span className="ml-1 text-xs opacity-75">
-                  ({Math.ceil(timeRemaining / 1000)}s)
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
 
     <div
