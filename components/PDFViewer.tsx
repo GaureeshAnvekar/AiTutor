@@ -39,6 +39,8 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
     width: number;
     height: number;
     pageNumber: number;
+    type: string; // "text" or "image"
+    timestamp: number; // For auto-disappear functionality
   }>>([]);
   const pillSpansRef = useRef<Array<HTMLElement>>([]);
   const currChunkIdRef = useRef<string>("");
@@ -341,6 +343,31 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
     return (spanText != '' && /[a-z]/.test(spanText) && pillChunkText.includes(spanText) || spanText.includes(pillChunkText));
   }
 
+  // Auto-disappear overlay boxes after 5 seconds
+  useEffect(() => {
+    if (overlayBoxes.length === 0) return;
+
+    const timer = setTimeout(() => {
+      setOverlayBoxes([]);
+    }, 5000); // 5 seconds
+
+    return () => clearTimeout(timer);
+  }, [overlayBoxes]);
+
+  // Update overlay boxes for countdown display
+  useEffect(() => {
+    if (overlayBoxes.length === 0) return;
+
+    const interval = setInterval(() => {
+      setOverlayBoxes(prevBoxes => {
+        const now = Date.now();
+        return prevBoxes.filter(box => (now - box.timestamp) < 5000);
+      });
+    }, 100); // Update every 100ms for smooth countdown
+
+    return () => clearInterval(interval);
+  }, [overlayBoxes]);
+
   // Listen for chat metadata events
   useEffect(() => {
     const handleChatMetadata = (data: any) => {
@@ -371,8 +398,49 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
         }
         
         const pillChunk = relevantChunks[0];
-        let pillChunkText = pillChunk.text.toLowerCase().trim();
-        pillChunkText = pillChunkText.replace(/\s+/g, "");
+        const chunkType = pillChunk.type || pillChunk.metadata?.type || "text";
+        
+        // Clear previous overlay boxes
+        setOverlayBoxes([]);
+        
+        // Handle image-type chunks with bounding box overlay
+        if (chunkType === "image") {
+          if (pillChunk.metadata && 
+              pillChunk.metadata.bboxX !== undefined && 
+              pillChunk.metadata.bboxY !== undefined &&
+              pillChunk.metadata.bboxWidth !== undefined &&
+              pillChunk.metadata.bboxHeight !== undefined) {
+            
+            const overlayBox = {
+              id: `overlay-image-chunk-${pillChunk.metadata.pageNumber}-${chunkId}`,
+              x: pillChunk.metadata.bboxX,
+              y: pillChunk.metadata.bboxY,
+              width: pillChunk.metadata.bboxWidth,
+              height: pillChunk.metadata.bboxHeight,
+              pageNumber: pillChunk.metadata.pageNumber || 1,
+              type: "image",
+              timestamp: Date.now()
+            };
+            
+            console.log('Created image overlay box:', overlayBox);
+            setOverlayBoxes([overlayBox]);
+            
+            // Scroll to the overlay box position
+            setTimeout(() => {
+              if (pdfViewerRef.current) {
+                pdfViewerRef.current.scrollPageIntoView({
+                  pageNumber: pillChunk.metadata.pageNumber || 1,
+                  destArray: [null, { name: "XYZ" }, pillChunk.metadata.bboxX, pillChunk.metadata.bboxY, 1],
+                });
+              }
+            }, 100); // Small delay to ensure PDF is rendered
+          }
+          return; // Skip text highlighting for image chunks
+        }
+        
+        // Handle text-type chunks with text highlighting
+        let pillChunkText = pillChunk.text;
+        pillChunkText = pillChunkText.normalize("NFKC").replace(/[\s\u00A0\u200B\u2028\u2029]+/g, "").toLowerCase().trim().replace(/\s+/g, "").replace(/['"`]+/g, "");
 
         
         const textLayers = document.querySelectorAll(`.page[data-page-number="${metadata.pageNumber}"] .textLayer`);
@@ -385,35 +453,43 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
           let found = false;
 
           spans.forEach((span: Element) => {
-            console.log(span.textContent);
+            //console.log(span.textContent);
           });
+          //console.log("PILL CHUNK TEXT: ", pillChunkText);
           while (endPtr < spans.length) {
-            currSection += spans[endPtr].textContent?.replace(/\s+/g, "").toLowerCase().trim();
-            //console.log("currSection: ", currSection);
-            //console.log("pill text: ", pillChunkText);
+            currSection += spans[endPtr].textContent?.normalize("NFKC").replace(/[\s\u00A0\u200B\u2028\u2029]+/g, "").toLowerCase().trim().replace(/\s+/g, "").replace(/['"`]+/g, "");
+            console.log("currSection: ", currSection);
+            console.log("pill text: ", pillChunkText);
+            console.log("endPtr: ", endPtr);
+            console.log("spans length: ", spans.length);
+            console.log("check ", currSection.includes(pillChunkText));
             if (currSection.includes(pillChunkText)) {
+              console.log("INSIDE");
               console.log("Match found:", currSection);
               found = true;
               break; // or handle match
             } else endPtr++;
           }
-
+          console.log("found: ", found);
           // trim excess spans
           if (found) {
             while (startPtr < spans.length) {
               const removeLength = spans[startPtr].textContent?.replace(/\s+/g, "").toLowerCase().trim().length;
               currSection = currSection.slice(removeLength);
-              if (!currSection.includes(pillChunkText)) break;
-              else startPtr++;
+              if (!currSection.includes(pillChunkText)) {
+                startPtr = Math.max(0, startPtr - 0);
+                break;
+              } else startPtr++;
             }
-
+            endPtr = Math.min(endPtr + 0, spans.length - 1);
             while (startPtr <= endPtr) {
-              spans[startPtr].style.border = "0.7px solid red";
-              spans[startPtr].setAttribute("tabindex", "-1");  // 👈 make it focusable
-              spans[startPtr].focus({ preventScroll: false }); 
+              const span = spans[startPtr] as HTMLElement;
+              span.style.border = "0.7px solid red";
+              span.setAttribute("tabindex", "-1");  // 👈 make it focusable
+              span.focus({ preventScroll: false }); 
               // Randomly add border-radius to make some look like circles
               if (Math.random() > 0.5) {
-                spans[startPtr].style.borderRadius = "50%";
+                span.style.borderRadius = "50%";
               }
               startPtr++;
             }
@@ -442,6 +518,17 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
         pillSpansRef.current = newSpans;
         currChunkIdRef.current = chunkId;
         currFindChunkIdxRef.current = 0;
+        
+        // Scroll to the first highlighted span for text chunks
+        if (newSpans.length > 0) {
+          setTimeout(() => {
+            newSpans[0].scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center',
+              inline: 'center'
+            });
+          }, 100); // Small delay to ensure highlighting is complete
+        }
       } catch (error) {
         console.error('Error handling chat metadata:', error);
       }
@@ -545,23 +632,41 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
 
       {/* Overlay boxes for highlighting relevant sections */}
       <div className="absolute inset-0 pointer-events-none z-30">
-        {overlayBoxes.map((box) => (
-          <div
-            key={box.id}
-            className="absolute pointer-events-none border-2 border-blue-500 bg-blue-100 bg-opacity-20"
-            style={{
-              left: `${box.x}px`,
-              top: `${box.y}px`,
-              width: `${box.width}px`,
-              height: `${box.height}px`,
-              boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5)',
-            }}
-          >
-            <div className="absolute -top-6 left-0 bg-blue-500 text-white text-xs px-1 py-0.5 rounded text-nowrap">
-              Page {box.pageNumber}
+        {overlayBoxes.map((box) => {
+          const timeElapsed = Date.now() - box.timestamp;
+          const timeRemaining = Math.max(0, 5000 - timeElapsed);
+          const opacity = Math.max(0.3, timeRemaining / 5000); // Fade out over time
+          
+          return (
+            <div
+              key={box.id}
+              className={`absolute pointer-events-none border-2 transition-opacity duration-300 ${
+                box.type === "image" 
+                  ? "border-red-500 bg-red-100 bg-opacity-20" 
+                  : "border-blue-500 bg-blue-100 bg-opacity-20"
+              }`}
+              style={{
+                left: `${box.x}px`,
+                top: `${box.y - 600}px`,
+                width: `${box.width}px`,
+                height: `${box.height}px`,
+                boxShadow: box.type === "image" 
+                  ? '0 0 0 1px rgba(239, 68, 68, 0.5)' 
+                  : '0 0 0 1px rgba(59, 130, 246, 0.5)',
+                opacity: opacity
+              }}
+            >
+              <div className={`absolute -top-6 left-0 text-white text-xs px-1 py-0.5 rounded text-nowrap ${
+                box.type === "image" ? "bg-red-500" : "bg-blue-500"
+              }`}>
+                {box.type === "image" ? "Image" : "Text"} - Page {box.pageNumber}
+                <span className="ml-1 text-xs opacity-75">
+                  ({Math.ceil(timeRemaining / 1000)}s)
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
 

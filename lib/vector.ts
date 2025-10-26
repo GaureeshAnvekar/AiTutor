@@ -119,6 +119,7 @@ class PineconeVectorDB {
           bboxWidth: chunk.metadata.bboxWidth,
           bboxHeight: chunk.metadata.bboxHeight,
           createdAt: chunk.metadata.createdAt,
+          type: chunk.metadata.type, // Include type field
           text: chunk.text // Include text for easy access
         }
       }));
@@ -167,6 +168,7 @@ class PineconeVectorDB {
           bboxWidth: match.metadata?.bboxWidth as number || 0,
           bboxHeight: match.metadata?.bboxHeight as number || 0,
           createdAt: match.metadata?.createdAt as string || '',
+          type: match.metadata?.type as string || 'text', // Include type field with default
           similarity: match.score || 0
         }
       })) || [];
@@ -273,6 +275,7 @@ export interface ChunkEmbedding {
     bboxWidth: number;
     bboxHeight: number;
     createdAt: string;
+    type: string; // "text" or "image"
     similarity?: number;
   };
 }

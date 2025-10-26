@@ -106,10 +106,11 @@ async function verbalizeImage(imageBytes: Uint8Array | Buffer | null, width: num
 
   try {
     // Validate image bytes - at this point imageBytes is not null
+    /*
     if (!(imageBytes as any instanceof Uint8Array || imageBytes as any instanceof Buffer)) {
       console.error('Invalid image bytes type:', typeof imageBytes);
       return null;
-    }
+    }*/
 
     // Check minimum size (images should be at least a few bytes)
     if (imageBytes.length < 10) {
@@ -207,14 +208,14 @@ async function verbalizeImage(imageBytes: Uint8Array | Buffer | null, width: num
 
 // Semantic chunking function with bounding box tracking
 function chunkByLines(items: any[], maxChars = 500, lineGap = 5) {
-  const chunks: { text: string; bbox: any }[] = [];
+  const chunks: { type: string, text: string; bbox: any }[] = [];
   let buffer = "";
   let bbox: any = null;
   let lastY: number | null = null;
 
   const flush = () => {
     if (buffer.trim().length > 0) {
-      chunks.push({ text: buffer.trim(), bbox });
+      chunks.push({ type: "text", text: buffer.trim(), bbox });
       buffer = "";
       bbox = null;
     }
@@ -247,9 +248,9 @@ function chunkByLines(items: any[], maxChars = 500, lineGap = 5) {
 
 
 /**
- * Extract bounding boxes (and optionally raw bytes) of images in a PDF page.
+ * Create image chunks for images in a PDF page.
  */
-export async function extractImageBBoxes(page: any) {
+export async function createImagesChunks(page: any) {
   const OPS = pdfjsLib.OPS;
   const opList = await page.getOperatorList();
   const results = [];
@@ -282,15 +283,15 @@ export async function extractImageBBoxes(page: any) {
 
         // We *try* to get the bytes, but this may fail if resources aren't loaded
         let imageBytes = null;
-        let imageDescription = null;
+        let imageDescription = "";
         let pixelData = null;
         try {
           const {pixelData: extractedPixelData, width, height} = await getXObjectFromPage(page, imageName);
           pixelData = extractedPixelData;
 
-          if (pixelData && (pixelData instanceof Uint8Array || pixelData instanceof Buffer)) {
+          if (pixelData /*&& (pixelData instanceof Uint8Array || pixelData instanceof Buffer)*/) {
             console.log(`Processing image ${imageName} with ${pixelData.length} bytes`);
-            imageDescription = await verbalizeImage(pixelData, width, height);
+            imageDescription = (await verbalizeImage(pixelData, width, height)) ?? "";
             console.log(`Image description: ${imageDescription}`);
           } else {
             console.warn(`Skipping image ${imageName} - invalid data type or no data`);
@@ -299,7 +300,7 @@ export async function extractImageBBoxes(page: any) {
           console.warn(`Failed to get image bytes for ${imageName}:`, e);
         }
 
-        results.push({ imageName, bbox, imageBytes: pixelData, imageDescription });
+        results.push({ type: "image", bbox, text: imageDescription });
         break;
       }
 
@@ -308,7 +309,7 @@ export async function extractImageBBoxes(page: any) {
         const bbox = getBBoxFromTransform(currentTransform);
         const img = args?.[0];
         let imageBytes = null;
-        let imageDescription = null, width = 0, height = 0;
+        let imageDescription = "", width = 0, height = 0;
         
         try {
           // Try different ways to get the image data
@@ -326,9 +327,9 @@ export async function extractImageBBoxes(page: any) {
             height = img.height;
           }
 
-          if (imageBytes && (imageBytes instanceof Uint8Array || imageBytes instanceof Buffer)) {
+          if (imageBytes /*&& (imageBytes instanceof Uint8Array || imageBytes instanceof Buffer)*/) {
             console.log(`Processing inline image with ${imageBytes.length} bytes`);
-            imageDescription = await verbalizeImage(imageBytes, width, height);
+            imageDescription = (await verbalizeImage(imageBytes, width, height)) ?? "";
           } else {
             console.warn(`Skipping inline image - invalid data type or no data`);
           }
@@ -336,7 +337,7 @@ export async function extractImageBBoxes(page: any) {
           console.warn(`Failed to get inline image bytes:`, e);
         }
         
-        results.push({ imageName: "inline", bbox, imageBytes, imageDescription });
+        results.push({ type: "image", bbox, text: imageDescription });
         break;
       }
 
@@ -498,7 +499,7 @@ export async function extractAndSaveChunks(pdfId: string): Promise<ChunkingResul
     }
 
     // Extract text chunks with bounding boxes using pdfjs-dist
-    let allChunks: { page: number; text: string; bbox: any }[] = [];
+    let allChunks: { type: string,page: number; text: string; bbox: any }[] = [];
     let pdfDoc: any;
     
     try {
@@ -524,11 +525,12 @@ export async function extractAndSaveChunks(pdfId: string): Promise<ChunkingResul
         const page = await pdfDoc.getPage(i);
         const textContent = await page.getTextContent();
 
-        extractImageBBoxes(page);
+        const imageChunks = await createImagesChunks(page);
         
         // Use semantic chunking function that preserves bounding boxes
         const chunks = chunkByLines(textContent.items, 500);
         chunks.forEach(chunk => allChunks.push({ ...chunk, page: i }));
+        imageChunks.forEach(chunk => allChunks.push({ ...chunk, page: i }));
       }
       
       console.log(`Extracted ${allChunks.length} chunks from PDF ${pdfId}`);
@@ -572,7 +574,8 @@ export async function extractAndSaveChunks(pdfId: string): Promise<ChunkingResul
               bboxHeight: chunk.bbox.height,
               textLength: chunk.text.length,
               vectorId: embedding.length > 0 ? chunkId : null,
-              updatedAt: new Date()
+              updatedAt: new Date(),
+              type: chunk.type,
             },
             create: {
               pdfId: pdfId,
@@ -584,14 +587,16 @@ export async function extractAndSaveChunks(pdfId: string): Promise<ChunkingResul
               bboxWidth: chunk.bbox.width,
               bboxHeight: chunk.bbox.height,
               textLength: chunk.text.length,
-              vectorId: embedding.length > 0 ? chunkId : null
+              vectorId: embedding.length > 0 ? chunkId : null,
+              type: chunk.type,
             }
           });
           
           return {
             ...savedChunk,
             embedding,
-            bbox: chunk.bbox
+            bbox: chunk.bbox,
+            type: chunk.type,
           };
         })
       );
@@ -616,6 +621,7 @@ export async function extractAndSaveChunks(pdfId: string): Promise<ChunkingResul
             bboxWidth: chunk.bboxWidth,
             bboxHeight: chunk.bboxHeight,
             createdAt: chunk.createdAt.toISOString(),
+            type: chunk.type, // Include type field
           }
         }));
       
