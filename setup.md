@@ -2,7 +2,7 @@
 
 ## Prerequisites
 - Node.js 18+ installed
-- PostgreSQL database (local or cloud)
+- PostgreSQL database (local or cloud like Neon, Supabase, RDS)
 - OpenAI API key
 
 ## Setup Steps
@@ -15,7 +15,7 @@ cp env.example .env.local
 ```
 
 Required environment variables:
-- `DATABASE_URL`: PostgreSQL connection string
+- `DATABASE_URL`: PostgreSQL connection string (use `sslmode=require` on most cloud providers)
 - `OPENAI_API_KEY`: Your OpenAI API key
 - `NEXTAUTH_SECRET`: Random secret for NextAuth (generate with `openssl rand -base64 32`)
 - `NEXTAUTH_URL`: Your app URL (http://localhost:3000 for development)
@@ -25,10 +25,10 @@ Required environment variables:
 # Install dependencies
 npm install
 
-# Generate Prisma client
-npx prisma generate
+# Ensure DATABASE_URL is set to a Postgres instance
+export DATABASE_URL=postgres://user:password@host:5432/dbname?sslmode=require
 
-# Create and run migrations
+# Create and run migrations locally
 npx prisma migrate dev --name init
 
 # (Optional) Seed the database
@@ -78,8 +78,15 @@ Visit `http://localhost:3000` to see the application.
 ### Vercel Deployment
 1. Push code to GitHub
 2. Connect repository to Vercel
-3. Set environment variables in Vercel dashboard
-4. Deploy
+3. In Vercel Project Settings → Environment Variables, set:
+   - `DATABASE_URL` (Postgres URL; include `sslmode=require` if needed)
+   - `OPENAI_API_KEY`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, etc.
+4. Deploy. The build will run `prisma migrate deploy` automatically.
+
+If you see database connection errors during build or runtime:
+- Verify `DATABASE_URL` is correct and accessible from Vercel
+- Ensure the DB allows external connections and SSL settings match
+- Check that migrations exist and the target database is empty/compatible
 
 ### Environment Variables for Production
 - `DATABASE_URL`: Production PostgreSQL URL
