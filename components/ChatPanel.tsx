@@ -256,7 +256,7 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
                   {/* Show metadata pills for assistant messages with relevant chunks */}
                   {msg.role === "assistant" && msg.relevantChunks && msg.relevantChunks.length > 0 && (
                     <div className="mt-3 pt-2 border-t border-gray-200">
-                      <p className="text-xs text-gray-500 mb-2">Related sections:</p>
+                      <p className="text-xs text-gray-500 mb-2">Related sections: Click to navigate to the relevant section.</p>
                       <div className="flex flex-wrap gap-2">
                         {msg.relevantChunks.map((chunk, index) => (
                           <MetadataPill
