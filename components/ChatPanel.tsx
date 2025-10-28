@@ -309,29 +309,33 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
       )}
 
       {/* Message Input */}
-      <form onSubmit={sendMessage} className="border-t p-4 bg-white flex items-center space-x-2">
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Ask a question about the PDF..."
-          className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={isLoading}
-        >
-          <Send className="h-5 w-5" />
-        </button>
-        {voiceSupported && (
-          <VoiceControls
-            ref={voiceControlsRef}
-            onVoiceInput={handleVoiceInput}
-            onVoiceOutput={handleVoiceOutput}
+      <form onSubmit={sendMessage} className="border-t p-4 bg-white flex flex-col space-y-2">
+        <div className="flex items-center space-x-2">
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Ask a question about the PDF..."
+            className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isLoading}
           />
+          <button
+            type="submit"
+            className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+          >
+            <Send className="h-5 w-5" />
+          </button>
+        </div>
+        {voiceSupported && (
+          <div className="flex justify-center">
+            <VoiceControls
+              ref={voiceControlsRef}
+              onVoiceInput={handleVoiceInput}
+              onVoiceOutput={handleVoiceOutput}
+              disabled={isLoading}
+            />
+          </div>
         )}
       </form>
     </div>
