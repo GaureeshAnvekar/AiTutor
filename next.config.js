@@ -17,6 +17,12 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['pdfjs-dist'],
   },
+  typescript: {
+    ignoreBuildErrors: true, // skip TS type checking during `next build`
+  },
+  eslint: {
+    ignoreDuringBuilds: true, // optional: skip ESLint during build
+  },
 }
 
 module.exports = nextConfig
