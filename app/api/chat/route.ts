@@ -17,17 +17,26 @@ async function sanitizeChunkText(originalQuery: string, chunkText: string, opena
 This was the chunk text received:
 ${chunkText}
 
-I want you to extract only the relevant text as it is without changing any format. Return only the relevant portions that relate to the original query, maintaining the exact original formatting and wording. Do not remove parts in between. Remove parts only at the very beginning or at the end.`;
+I want you to extract only the relevant text as it is without changing any format. Return only the relevant portions that relate to the original query, maintaining the exact original formatting and wording. Do not remove parts in between. Remove parts only at the very beginning or at the end. If entire text is irrelevant, add the word BAD to your response. For text describing an image or diagram don't extract or remove anything, only add the word BAD to your response if the description is 100% irrelevant to the original query. If you are not sure, DO NOT ADD THE WORD BAD.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
           role: "system",
-          content: `You are a text removal assistant. Remove only parts either at the beginning or at the end that are irrelevant to the original query only if it is absolutely necessary. Do not remove parts in between even if they are irrelevant. If entire text is irrelevant, add the word BAD to your response. 
+          content: `You are a text removal assistant. Remove only parts either at the beginning or at the end that are irrelevant to the original query only if it is absolutely necessary. Do not remove parts in between even if they are irrelevant. If entire text is irrelevant, add the word BAD to your response. For text describing an image or diagram don't extract or remove anything, only add the word BAD to your response if the description is 100% irrelevant to the original query. If you are not sure, DO NOT ADD THE WORD BAD.
           Eg 1: Query: What is his experience at company A.
           Chunk text: "He worked at company A for 2 years. He did build a product for company A. He then worked at company B for 1 year. He then worked at company C for 3 years."
-          Response: "He worked at company A for 2 years. He did build a product for company A."`
+          Response: "He worked at company A for 2 years. He did build a product for company A."
+          Eg 2: Query: What is his experience at company B.
+          Chunk text: "He worked at company A for 2 years. He did build a product for company A. He then worked at company B for 1 year. He then worked at company C for 3 years."
+          Response: "He then worked at company B for 1 year."
+          Eg 3: Query: What is his experience at company B.
+          Chunk text: "He worked at company A for 2 years. He did build a product for company A. He then worked at company B for 1 year. He then worked at company C for 3 years. He also had built a great product at company B. His last company was company D."
+          Response: "He then worked at company B for 1 year. He then worked at company C for 3 years. He also had built a great product at company B."
+          Eg 4: Query: Diagram of labrador retriever.
+          Chunk text: "The image shows a light-colored dog, likely a Labrador Retriever, standing on grass. The dog appears to be looking to the side. There are no text, diagrams, charts, or other visual elements present in the image that would be relevant for document analysis. The focus is solely on the dog and its surroundings."
+          Response: "The image shows a light-colored dog, likely a Labrador Retriever, standing on grass. The dog appears to be looking to the side. There are no text, diagrams, charts, or other visual elements present in the image that would be relevant for document analysis. The focus is solely on the dog and its surroundings." (Explanation: Even though the actual image is not present, but the textual description is relevant to the original query.)`
         },
         {
           role: "user",
@@ -198,7 +207,7 @@ Note: This response is based on the most relevant sections of the PDF that match
     const messages = [
       {
         role: "system" as const,
-        content: `You are an AI assistant specialized in tutoring students on PDF documents. Your goal is to help the user understand the provided PDF content.
+        content: `You are an AI assistant specialized in tutoring students on PDF documents. Your goal is to help the user understand the provided PDF content. Only use the PDF content. Do not make up any information. If pdf information is not present, say you cannot answer the question.
 
         PDF Information:
         ${pdfText}
@@ -220,7 +229,7 @@ Note: This response is based on the most relevant sections of the PDF that match
       model: "gpt-4",
       messages: messages as any,
       max_tokens: 1000,
-      temperature: 0.7,
+      temperature: 0.5,
     });
 
     const aiResponse = completion.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response.";

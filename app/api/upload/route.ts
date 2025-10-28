@@ -35,9 +35,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 });
     }
 
+    /*
     if (file.size > 10 * 1024 * 1024) { // 10MB limit
       return NextResponse.json({ error: "File size must be less than 10MB" }, { status: 400 });
-    }
+    }*/
 
     // Create uploads directory if it doesn't exist
     const uploadDir = join(process.cwd(), "uploads");

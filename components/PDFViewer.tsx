@@ -395,14 +395,16 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
 
   // Listen for chat metadata events
   useEffect(() => {
-    const handleChatMetadata = (data: any) => {
+    const handleChatMetadata = async (data: any) => {
       try {
+        console.log("handleChatMetadata triggered");
         const {relevantChunks, metadata, timestamp, chunkId} = data;
         
         pdfViewerRef.current.scrollPageIntoView({
           pageNumber: metadata.pageNumber,
         });
 
+        await new Promise(resolve => setTimeout(resolve, 500));
         /*
         console.log("currChunkId: ", chunkId);
         console.log("currChunkIdRef.current: ", currChunkIdRef.current);
@@ -499,7 +501,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
             endPtr = Math.min(endPtr + 0, spans.length - 1);
             while (startPtr <= endPtr) {
               const span = spans[startPtr] as HTMLElement;
-              span.style.border = "0.7px solid red";
+              span.style.border = "2px solid red";
               span.setAttribute("tabindex", "-1");  // 👈 make it focusable
               span.focus({ preventScroll: false }); 
               // Randomly add border-radius to make some look like circles

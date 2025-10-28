@@ -39,10 +39,11 @@ export default function UploadPage() {
       return;
     }
 
+    /*
     if (file.size > 10 * 1024 * 1024) { // 10MB limit
       setError("File size must be less than 10MB.");
       return;
-    }
+    }*/
 
     setUploadedFile(file);
     setError("");
