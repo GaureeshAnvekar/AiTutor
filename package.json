@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npx prisma generate && next build",
     "start": "next start",
     "prisma": "prisma",
     "db:seed": "tsx prisma/seed.ts",
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.22.0",
-    "@pinecone-database/pinecone": "^6.1.2",
+    "@pinecone-database/pinecone": "^6.1.2", 
     "@prisma/client": "^5.7.1",
     "ai": "^2.2.31",
     "autoprefixer": "^10.4.16",
