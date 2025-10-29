@@ -12,17 +12,20 @@ import OpenAI from "openai";
 import sharp from "sharp";
 
 // Use pdfjs-dist for server-side PDF processing with bounding boxes
-const pdfjsLib = require("pdfjs-dist/legacy/build/pdf");
+//const pdfjsLib = require("pdfjs-dist/legacy/build/pdf");
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import * as PDFJSWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 
 // Configure PDF.js for server-side usage without workers
 // Completely disable worker for server-side processing
 //pdfjsLib.GlobalWorkerOptions.workerSrc = '/Users/gaureesh/StudyFetch/AiTutor/node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs';
 //pdfjsLib.GlobalWorkerOptions.workerSrc = process.env.CURR_ENV === 'DEV' ? '/Users/gaureesh/StudyFetch/AiTutor/node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs' : '/pdfjs/pdf.worker.min.mjs';
-
+pdfjsLib.GlobalWorkerOptions.workerSrc = "../../../../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs";
 /**
  * Convert image bytes to base64 string
  */
 function imageBytesToBase64(imageBytes: Uint8Array | Buffer): string {
+  const worker = PDFJSWorker;
   if (imageBytes instanceof Buffer) {
     return imageBytes.toString('base64');
   } else {
