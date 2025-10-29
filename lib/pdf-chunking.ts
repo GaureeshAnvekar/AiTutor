@@ -503,8 +503,13 @@ export async function extractAndSaveChunks(pdfId: string): Promise<ChunkingResul
     let pdfDoc: any;
     
     try {
-      const uploadDir = process.env.UPLOAD_DIR || "./uploads";
-      const filePath = path.join(process.cwd(), uploadDir, `${pdfId}.pdf`);
+      // Prefer stored absolute path; fallback to env-configured upload dir
+      const preferredPath = pdf.filePath;
+      const fallbackUploadDir = process.env.UPLOAD_DIR || (process.env.VERCEL === "1" ? "/tmp/uploads" : "./uploads");
+      const fallbackPath = path.isAbsolute(fallbackUploadDir)
+        ? path.join(fallbackUploadDir, `${pdfId}.pdf`)
+        : path.join(process.cwd(), fallbackUploadDir, `${pdfId}.pdf`);
+      const filePath = preferredPath && preferredPath.length > 0 ? preferredPath : fallbackPath;
       
       // Read PDF file
       const pdfBuffer = await fs.readFile(filePath);

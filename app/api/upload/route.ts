@@ -41,7 +41,8 @@ export async function POST(req: NextRequest) {
     }*/
 
     // Create uploads directory if it doesn't exist
-    const uploadDir = join(process.cwd(), "uploads");
+    const uploadDir = process.env.UPLOAD_DIR || 
+      (process.env.VERCEL === "1" ? "/tmp/uploads" : join(process.cwd(), "uploads"));
     try {
       await mkdir(uploadDir, { recursive: true });
     } catch (error) {
