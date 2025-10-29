@@ -15,15 +15,16 @@ interface ChunkMetadata {
 
 interface MetadataPillProps {
   chunk: ChunkMetadata;
-  onClick?: (chunk: ChunkMetadata, chunkId: string | undefined) => void;
+  onClick?: (chunk: ChunkMetadata, chunkId: string | undefined, totalRelevantChunks: number) => void;
   className?: string;
   chunkId?: string;
+  totalRelevantChunks?: number;
 }
 
-export default function MetadataPill({ chunk, onClick, className = "", chunkId }: MetadataPillProps) {
+export default function MetadataPill({ chunk, onClick, className = "", chunkId, totalRelevantChunks }: MetadataPillProps) {
   const handleClick = () => {
     if (onClick) {
-      onClick(chunk, chunkId);
+      onClick(chunk, chunkId, totalRelevantChunks || 0);
     }
   };
 

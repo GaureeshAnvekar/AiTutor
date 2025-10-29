@@ -184,7 +184,7 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handlePillClick = (chunk: ChunkMetadata, chunkId: string | undefined) => {
+  const handlePillClick = (chunk: ChunkMetadata, chunkId: string | undefined, totalRelevantChunks: number) => {
     // Dispatch event to navigate to the specific chunk
     console.log("The chunk is: ", chunk);
     const chunkType = chunk.type || chunk.metadata?.type || "text";
@@ -195,7 +195,7 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
       }],
       metadata: {
         pdfId: pdfId,
-        totalRelevantChunks: 1,
+        totalRelevantChunks: totalRelevantChunks,
         searchQuery: `Navigate to page ${chunk.metadata.pageNumber}`,
         pageNumber: chunk.metadata.pageNumber,
         type: chunkType
@@ -224,7 +224,7 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
         const firstChunk = msg.relevantChunks[0];
         const firstChunkId = `${msg.id}-chunk-0`;
         setTimeout(() => {
-          handlePillClick(firstChunk, firstChunkId);
+          handlePillClick(firstChunk, firstChunkId, msg.relevantChunks?.length || 0);
         }, 50);
         break;
       }
@@ -291,6 +291,7 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
                             chunk={chunk}
                             onClick={handlePillClick}
                             chunkId={`${msg.id}-chunk-${index}`}
+                            totalRelevantChunks={msg.relevantChunks?.length || 0}
                           />
                         ))}
                       </div>
