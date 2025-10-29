@@ -17,6 +17,7 @@ const nextConfig = {
           {
             from: "node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
             to: "static/chunks/pdf.worker.min.mjs",
+            info: { minimized: true },
           },
         ],
       })
