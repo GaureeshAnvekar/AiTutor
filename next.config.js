@@ -15,8 +15,8 @@ const nextConfig = {
       new CopyWebpackPlugin({
         patterns: [
           {
-            from: "node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
-            to: "/var/task/.next/static/chunks/pdf.worker.min.mjs",
+            from: "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+            to: ".next/server/vendor-chunks/pdf.worker.mjs",
             info: { minimized: true },
           },
         ],
