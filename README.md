@@ -13,11 +13,10 @@ An intelligent PDF tutoring application that helps students understand documents
 - **Chat History** - Persistent conversation storage
 - **Responsive Design** - Modern UI with Tailwind CSS
 - **Voice Controls** - UI ready for voice input/output implementation
-
-### 🔄 In Progress
 - PDF annotation and highlighting system
 - Advanced voice integration
 - Vector search within PDFs
+
 
 ## 🛠️ Tech Stack
 
@@ -34,6 +33,7 @@ An intelligent PDF tutoring application that helps students understand documents
 - Node.js 18+
 - PostgreSQL database
 - OpenAI API key
+- Gemini API key
 
 ## 🚀 Quick Start
 
@@ -76,102 +76,14 @@ npm run dev
 
 Visit `http://localhost:3000` 🎉
 
-## 📁 Project Structure
 
-```
-ai-pdf-tutor/
-├── app/                          # Next.js App Router
-│   ├── (auth)/                   # Authentication pages
-│   │   ├── login/page.tsx
-│   │   └── signup/page.tsx
-│   ├── dashboard/page.tsx        # User dashboard
-│   ├── upload/page.tsx           # PDF upload page
-│   ├── pdfs/[id]/page.tsx       # PDF viewer with chat
-│   └── api/                     # API routes
-│       ├── auth/[...nextauth]/   # NextAuth handlers
-│       ├── auth/register/        # User registration
-│       ├── upload/               # PDF upload
-│       ├── pdfs/[id]/           # PDF management
-│       └── chat/                # AI chat endpoint
-├── components/                   # React components
-│   ├── ChatPanel.tsx            # Chat interface
-│   ├── PDFViewer.tsx           # PDF display
-│   └── VoiceControls.tsx        # Voice controls
-├── lib/                         # Utility libraries
-│   ├── auth.ts                  # NextAuth configuration
-│   ├── db.ts                   # Prisma client
-│   ├── llm.ts                  # AI integration
-│   ├── pdf.ts                  # PDF processing
-│   └── vector.ts               # Vector search (future)
-├── prisma/                     # Database schema
-│   ├── schema.prisma
-│   └── seed.ts
-└── styles/                     # Global styles
-    └── globals.css
-```
-
-## 🎯 Core User Flow
-
-1. **Sign Up/Login** - Users create accounts with email/password
-2. **Upload PDF** - Drag-and-drop PDF documents (up to 10MB)
-3. **Start Chatting** - Ask questions about the PDF content
-4. **AI Responses** - Get intelligent answers with page references
-5. **Navigation** - AI can navigate to specific pages
-6. **History** - All conversations are saved and accessible
-
-## 🔧 API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | User registration |
-| POST | `/api/upload` | PDF file upload |
-| GET | `/api/pdfs/[id]` | Get PDF metadata |
-| GET | `/api/pdfs/[id]/file` | Serve PDF file |
-| POST | `/api/chat` | Chat with AI tutor |
 
 ## 🗄️ Database Schema
 
-```prisma
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
-  pdfs      PDF[]
-  chats     Chat[]
-}
 
-model PDF {
-  id           String   @id @default(cuid())
-  ownerId      String
-  filename     String
-  originalName String
-  filePath     String
-  fileSize     Int
-  pageCount    Int?
-  createdAt    DateTime @default(now())
-  chats        Chat[]
-}
 
-model Chat {
-  id        String    @id @default(cuid())
-  userId    String
-  pdfId     String?
-  title     String
-  messages  Message[]
-  createdAt DateTime  @default(now())
-}
 
-model Message {
-  id          String   @id @default(cuid())
-  chatId      String
-  role        String
-  content     String   @db.Text
-  annotations Json?
-  createdAt   DateTime @default(now())
-}
-```
+
 
 ## 🚀 Deployment
 
@@ -188,35 +100,3 @@ OPENAI_API_KEY=your-production-openai-key
 NEXTAUTH_SECRET=your-production-secret
 NEXTAUTH_URL=https://your-domain.com
 ```
-
-## 🧪 Testing
-
-Create a test user:
-```bash
-npm run db:seed
-```
-
-Login with:
-- Email: `test@example.com`
-- Password: `password123`
-
-## 🔮 Future Enhancements
-
-- **Visual PDF Annotations** - Highlight text and images on PDF canvas
-- **Advanced Voice Integration** - Web Speech API for voice input/output
-- **Vector Search** - Semantic search within PDF content
-- **Multi-language Support** - Support for various languages
-- **Collaborative Features** - Share PDFs and chat sessions
-- **Analytics Dashboard** - Track learning progress and engagement
-
-## 📝 License
-
-This project is built for StudyFetch evaluation purposes.
-
-## 🤝 Contributing
-
-This is a demonstration project showcasing modern web development practices and AI integration capabilities.
-
----
-
-**Built with ❤️ for StudyFetch**
