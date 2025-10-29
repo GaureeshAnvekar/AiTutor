@@ -39,11 +39,12 @@ export default function UploadPage() {
       return;
     }
 
-    /*
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      setError("File size must be less than 10MB.");
-      return;
-    }*/
+  // Enforce Vercel 4.5MB upload limit on the client
+  const maxSizeBytes = Math.floor(4.5 * 1024 * 1024);
+  if (file.size > maxSizeBytes) {
+    setError("Vercel only allows 4.5MB max");
+    return;
+  }
 
     setUploadedFile(file);
     setError("");
@@ -177,7 +178,7 @@ export default function UploadPage() {
                   </p>
                 </div>
                 <div className="text-xs text-gray-400">
-                  PDF files only • Max 10MB
+                  PDF files only • Max 4.5MB
                 </div>
               </div>
             )}
