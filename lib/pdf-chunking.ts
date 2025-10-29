@@ -17,7 +17,7 @@ const pdfjsLib = require("pdfjs-dist/legacy/build/pdf");
 // Configure PDF.js for server-side usage without workers
 // Completely disable worker for server-side processing
 //pdfjsLib.GlobalWorkerOptions.workerSrc = '/Users/gaureesh/StudyFetch/AiTutor/node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs';
-pdfjsLib.GlobalWorkerOptions.workerSrc = process.env.CURR_ENV === 'DEV' ? '/Users/gaureesh/StudyFetch/AiTutor/node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs' : '/var/task/_next/static/chunks/pdf.worker.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = process.env.CURR_ENV === 'DEV' ? '/Users/gaureesh/StudyFetch/AiTutor/node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs' : '/var/task/.next/server/static/chunks/pdf.worker.min.mjs';
 
 /**
  * Convert image bytes to base64 string
