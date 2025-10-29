@@ -1,3 +1,4 @@
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
@@ -9,6 +10,18 @@ const nextConfig = {
       fs: false,
       path: false,
     };
+
+    config.plugins.push(
+      new CopyWebpackPlugin({
+        patterns: [
+          {
+            from: "node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+            to: "static/chunks/pdf.worker.min.mjs",
+          },
+        ],
+      })
+    );
+
     return config;
   },
   images: {
