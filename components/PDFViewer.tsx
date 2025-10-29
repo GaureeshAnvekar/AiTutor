@@ -398,6 +398,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
     const handleChatMetadata = async (data: any) => {
       try {
         console.log("handleChatMetadata triggered");
+        setChatMetadata(data);
         const {relevantChunks, metadata, timestamp, chunkId} = data;
         
         pdfViewerRef.current.scrollPageIntoView({
@@ -547,6 +548,10 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
             });
           }, 100); // Small delay to ensure highlighting is complete
         }
+
+        const inputField = document.querySelector('input[type="text"]');
+        if (inputField) (inputField as HTMLInputElement).focus();
+        
       } catch (error) {
         console.error('Error handling chat metadata:', error);
       }

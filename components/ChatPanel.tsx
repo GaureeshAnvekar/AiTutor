@@ -43,6 +43,7 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const voiceControlsRef = useRef<VoiceControlsRef>(null);
+  const autoClickedMessageIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     scrollToBottom();
@@ -203,6 +204,32 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
       chunkId: chunkId,
     });
   };
+
+  // Auto-click the first pill of newly added assistant messages with relevant chunks
+  useEffect(() => {
+    if (!messages || messages.length === 0) return;
+
+    // Find the latest assistant message that has relevant chunks and hasn't been auto-clicked yet
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (
+        msg.role === "assistant" &&
+        msg.relevantChunks &&
+        msg.relevantChunks.length > 0 &&
+        !autoClickedMessageIdsRef.current.has(msg.id)
+      ) {
+        // Mark as clicked to avoid repeats
+        autoClickedMessageIdsRef.current.add(msg.id);
+        // Defer slightly to ensure DOM is painted
+        const firstChunk = msg.relevantChunks[0];
+        const firstChunkId = `${msg.id}-chunk-0`;
+        setTimeout(() => {
+          handlePillClick(firstChunk, firstChunkId);
+        }, 50);
+        break;
+      }
+    }
+  }, [messages]);
 
   return (
     <div className="flex flex-col h-full">

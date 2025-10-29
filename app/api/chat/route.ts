@@ -17,7 +17,7 @@ async function sanitizeChunkText(originalQuery: string, chunkText: string, opena
 This was the chunk text received:
 ${chunkText}
 
-I want you to extract only the relevant text as it is without changing any format. Return only the relevant portions that relate to the original query, maintaining the exact original formatting and wording. Do not remove parts in between. Remove parts only at the very beginning or at the end. If entire text is irrelevant, add the word BAD to your response. For text describing an image or diagram don't extract or remove anything, only add the word BAD to your response if the description is 100% irrelevant to the original query. If you are not sure, DO NOT ADD THE WORD BAD.`;
+I want you to extract only the relevant text as it is without changing any format. Return only the relevant portions that relate to the original query, maintaining the exact original formatting, wording, and order. Do not remove parts in between. Remove parts only at the very beginning or at the end. If entire text is irrelevant, add the word BAD to your response. For text describing an image or diagram don't extract or remove anything, only add the word BAD to your response if the description is 100% irrelevant to the original query. If you are not sure, DO NOT ADD THE WORD BAD.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
