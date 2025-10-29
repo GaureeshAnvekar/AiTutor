@@ -642,7 +642,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span className="text-xs text-green-700 font-medium">
-              Found {chatMetadata.relevantChunks?.length || 0} relevant sections
+              Found {chatMetadata.metadata.totalRelevantChunks || 0} relevant sections
             </span>
           </div>
           {chatMetadata.searchQuery && (
