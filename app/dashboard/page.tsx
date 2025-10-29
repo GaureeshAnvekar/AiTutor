@@ -1,7 +1,7 @@
 "use client";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Upload, FileText, MessageSquare, LogOut, User } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -11,6 +11,10 @@ export default function DashboardPage() {
   const [pdfs, setPdfs] = useState<any[]>([]);
   const [chats, setChats] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -46,6 +50,59 @@ export default function DashboardPage() {
       console.error("Error loading user data:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleChooseFileClick = () => {
+    if (fileInputRef.current && !isUploading) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      setUploadError("Please upload a PDF file only.");
+      event.target.value = "";
+      return;
+    }
+
+    setUploadError("");
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const result = await response.json();
+
+      // Simulate progress to give feedback
+      for (let i = 0; i <= 100; i += 10) {
+        setUploadProgress(i);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => setTimeout(resolve, 60));
+      }
+
+      router.push(`/pdfs/${result.pdfId}`);
+    } catch (err) {
+      setUploadError("Upload failed. Please try again.");
+      setIsUploading(false);
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -110,14 +167,42 @@ export default function DashboardPage() {
               Upload a PDF Document
             </h3>
             <p className="text-gray-600 mb-6">
-              Drag and drop your PDF file here, or click to browse
+              Click below to choose a PDF and we’ll upload it right away
             </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={handleFileSelected}
+            />
             <button
-              onClick={() => router.push("/upload")}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={handleChooseFileClick}
+              disabled={isUploading}
+              className={`bg-blue-600 text-white px-6 py-3 rounded-lg transition-colors ${
+                isUploading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700"
+              }`}
             >
-              Choose PDF File
+              {isUploading ? "Uploading..." : "Choose PDF File"}
             </button>
+
+            {isUploading && (
+              <div className="mt-4 w-full max-w-md mx-auto">
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Uploading and processing your PDF...</p>
+              </div>
+            )}
+
+            {uploadError && (
+              <div className="mt-4 text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg">
+                {uploadError}
+              </div>
+            )}
           </div>
         </div>
 
