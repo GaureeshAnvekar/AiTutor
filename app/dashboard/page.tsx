@@ -69,6 +69,14 @@ export default function DashboardPage() {
       return;
     }
 
+    // Enforce Vercel 4.5MB upload limit on the client
+    const maxSizeBytes = Math.floor(4.5 * 1024 * 1024);
+    if (file.size > maxSizeBytes) {
+      setUploadError("Vercel only allows 4.5MB max");
+      event.target.value = "";
+      return;
+    }
+
     setUploadError("");
     setIsUploading(true);
     setUploadProgress(0);
