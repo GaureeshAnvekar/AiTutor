@@ -501,7 +501,7 @@ export default function PDFViewer({ url, page = 1, onPageChange, onTotalPages }:
             endPtr = Math.min(endPtr + 0, spans.length - 1);
             while (startPtr <= endPtr) {
               const span = spans[startPtr] as HTMLElement;
-              span.style.border = "1px solid red";
+              span.style.border = "0.8px solid red";
               span.setAttribute("tabindex", "-1");  // 👈 make it focusable
               span.focus({ preventScroll: false }); 
               // Randomly add border-radius to make some look like circles
