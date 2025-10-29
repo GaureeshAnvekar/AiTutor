@@ -14,8 +14,9 @@
   },
   "dependencies": {
     "@google/genai": "^1.22.0",
-    "@pinecone-database/pinecone": "^6.1.2", 
+    "@pinecone-database/pinecone": "^6.1.2",
     "@prisma/client": "^5.7.1",
+    "@vercel/blob": "^2.0.0",
     "ai": "^2.2.31",
     "autoprefixer": "^10.4.16",
     "bcryptjs": "^2.4.3",

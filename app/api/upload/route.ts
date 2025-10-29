@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import { v4 as uuidv4 } from "uuid";
 import { extractAndSaveChunks } from "@/lib/pdf-chunking";
+import { put } from "@vercel/blob";
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,24 +39,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "File size must be less than 10MB" }, { status: 400 });
     }*/
 
-    // Create uploads directory if it doesn't exist
-    const uploadDir = process.env.UPLOAD_DIR || 
-      (process.env.VERCEL === "1" ? "/tmp/uploads" : join(process.cwd(), "uploads"));
-    try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch (error) {
-      // Directory might already exist
-    }
-
     // Generate unique filename
     const fileId = uuidv4();
     const fileName = `${fileId}.pdf`;
-    const filePath = join(uploadDir, fileName);
 
-    // Save file to disk
+    // Upload file to Vercel Blob Storage
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    const blob = await put(fileName, bytes, {
+      access: "public",
+      contentType: "application/pdf",
+    });
+
+    console.log("File uploaded to blob storage:", blob.url);
 
     // Save to database
     const pdf = await prisma.pDF.create({
@@ -66,7 +59,7 @@ export async function POST(req: NextRequest) {
         ownerId: user.id,
         filename: fileName,
         originalName: file.name,
-        filePath: filePath,
+        filePath: blob.url, // Store the blob URL instead of filesystem path
         fileSize: file.size,
       }
     });

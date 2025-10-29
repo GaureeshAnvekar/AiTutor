@@ -503,16 +503,30 @@ export async function extractAndSaveChunks(pdfId: string): Promise<ChunkingResul
     let pdfDoc: any;
     
     try {
-      // Prefer stored absolute path; fallback to env-configured upload dir
-      const preferredPath = pdf.filePath;
-      const fallbackUploadDir = process.env.UPLOAD_DIR || (process.env.VERCEL === "1" ? "/tmp/uploads" : "./uploads");
-      const fallbackPath = path.isAbsolute(fallbackUploadDir)
-        ? path.join(fallbackUploadDir, `${pdfId}.pdf`)
-        : path.join(process.cwd(), fallbackUploadDir, `${pdfId}.pdf`);
-      const filePath = preferredPath && preferredPath.length > 0 ? preferredPath : fallbackPath;
+      let pdfBuffer: Buffer;
       
-      // Read PDF file
-      const pdfBuffer = await fs.readFile(filePath);
+      // Check if filePath is a URL (blob storage) or a filesystem path
+      const isUrl = pdf.filePath.startsWith("http://") || pdf.filePath.startsWith("https://");
+      
+      if (isUrl) {
+        // Fetch from blob storage or URL
+        console.log(`Fetching PDF from URL: ${pdf.filePath}`);
+        const response = await fetch(pdf.filePath);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch PDF from blob storage: ${response.statusText}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        pdfBuffer = Buffer.from(arrayBuffer);
+      } else {
+        // Read from filesystem (for backward compatibility)
+        const isVercel = !!(process.env.VERCEL || process.env.VERCEL_ENV || process.env.VERCEL_URL);
+        const fallbackUploadDir = process.env.UPLOAD_DIR || (isVercel ? "/tmp/uploads" : "./uploads");
+        const fallbackPath = path.isAbsolute(fallbackUploadDir)
+          ? path.join(fallbackUploadDir, `${pdfId}.pdf`)
+          : path.join(process.cwd(), fallbackUploadDir, `${pdfId}.pdf`);
+        const filePath = pdf.filePath && pdf.filePath.length > 0 ? pdf.filePath : fallbackPath;
+        pdfBuffer = await fs.readFile(filePath);
+      }
       
       // Convert Buffer to Uint8Array for PDF.js
       const uint8Array = new Uint8Array(pdfBuffer);
