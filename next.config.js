@@ -16,7 +16,7 @@ const nextConfig = {
         patterns: [
           {
             from: "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
-            to: ".next/server/vendor-chunks/pdf.worker.mjs",
+            to: ".next/server/app/api/upload/pdf.worker.mjs",
             info: { minimized: true },
           },
         ],
