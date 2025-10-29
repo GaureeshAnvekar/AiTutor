@@ -236,7 +236,7 @@ export default function DashboardPage() {
                           {pdf.originalName}
                         </h4>
                         <p className="text-xs text-gray-500 mt-1">
-                          {(pdf.fileSize / 1024 / 1024).toFixed(2)} MB • {pdf.pageCount || 0} pages
+                          {(pdf.fileSize / 1024 / 1024).toFixed(2)} MB
                         </p>
                         {pdf.lastChat && (
                           <p className="text-xs text-blue-600 mt-1">
