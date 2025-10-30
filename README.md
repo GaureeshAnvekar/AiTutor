@@ -2,6 +2,11 @@
 
 An intelligent PDF tutoring application that helps students understand documents through interactive AI-powered conversations. Built with Next.js 14, Prisma, OpenAI, and modern web technologies.
 
+Video demo (with audio):
+[![Watch the demo video](./home.png)](https://drive.google.com/file/d/1VuZv6SPCABrsL8xop4dw4lsTKBgzNfT0/view?usp=sharing)
+
+Note: For large pdfs with multiple high-res images, the upload process can be further improved with parallel workers on the backend processing different pages of the pdf in parallel and initiating the "image verbalization LLM requests".
+
 ## 🚀 Features
 
 ### ✅ Implemented
