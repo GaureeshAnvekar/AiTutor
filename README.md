@@ -2,6 +2,8 @@
 
 An intelligent PDF tutoring application that helps students understand documents through interactive AI-powered conversations. Built with Next.js 14, Prisma, OpenAI, and modern web technologies.
 
+Vercel link: https://ai-tutor-1-fukhnuyaa-gaurishs-projects-ca8013fe.vercel.app/login
+
 Video demo (with audio):
 [![Watch the demo video](./home.png)](https://drive.google.com/file/d/1VuZv6SPCABrsL8xop4dw4lsTKBgzNfT0/view?usp=sharing)
 
