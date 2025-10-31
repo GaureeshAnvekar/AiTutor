@@ -318,10 +318,18 @@ export async function searchSimilarChunks(
   try {
     // Generate embedding for the query
     const queryEmbedding = await generateEmbedding(query);
+    let tries = 0;
+    let results: ChunkEmbedding[] = [];
     
-    // Search for similar chunks
-    const results = await vectorDB.search(queryEmbedding, pdfId, topK);
-    
+    // Attempt search up to 3 times if no results are found
+    while (tries <= 5) {
+      results = await vectorDB.search(queryEmbedding, pdfId, topK);
+      if (results?.length && results.length > 0) {
+        break;
+      }
+      tries += 1;
+    }
+
     return results;
   } catch (error) {
     console.error('Error searching vector database:', error);
