@@ -137,6 +137,19 @@ export default function LoginPage() {
               Sign up
             </Link>
           </div>
+          <div className="text-center">
+            <span className="text-sm text-gray-600">
+              Watch a{" "}
+          
+            <Link
+              href="https://drive.google.com/file/d/1VuZv6SPCABrsL8xop4dw4lsTKBgzNfT0/view?usp=sharing"
+              className="font-medium text-blue-600 hover:text-blue-500"
+              target="_blank" rel="noopener noreferrer"
+            >
+              demo
+            </Link>
+            </span>
+          </div>
         </form>
       </div>
     </div>
