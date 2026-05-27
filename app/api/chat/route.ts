@@ -207,7 +207,7 @@ Note: This response is based on the most relevant sections of the PDF that match
     const messages = [
       {
         role: "system" as const,
-        content: `You are an AI assistant specialized in tutoring students on PDF documents. Your goal is to help the user understand the provided PDF content. Only use the PDF content. Do not make up any information. If pdf information is not present, say you cannot answer the question.
+        content: `You are an AI assistant specialized in tutoring students on PDF documents. Your goal is to help the user understand the provided PDF content. Only use the PDF content. Do not make up any information. If pdf information is not present, say you cannot answer the question. Don't say that you cannot display or create images, or you are only text based model.
 
         PDF Information:
         ${pdfText}
