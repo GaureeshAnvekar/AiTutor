@@ -24,6 +24,7 @@ interface Message {
   content: string;
   timestamp: Date;
   relevantChunks?: ChunkMetadata[];
+  annotations?: any;
   videoUrl?: string;
   visualizationStatus?: "generating" | "ready" | "failed";
 }
@@ -44,6 +45,7 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
   const [voiceSupported, setVoiceSupported] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [visualizingMessageIds, setVisualizingMessageIds] = useState<Set<string>>(new Set());
+  const [activeChatId, setActiveChatId] = useState(chatId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const voiceControlsRef = useRef<VoiceControlsRef>(null);
   const autoClickedMessageIdsRef = useRef<Set<string>>(new Set());
@@ -55,9 +57,24 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
   // Load chat history when chatId is provided
   useEffect(() => {
     if (chatId) {
+      setActiveChatId(chatId);
       loadChatHistory();
     }
   }, [chatId]);
+
+  const parseMessageAnnotations = (annotations: any) => {
+    if (!annotations) return null;
+
+    if (typeof annotations === "object") {
+      return annotations;
+    }
+
+    try {
+      return JSON.parse(annotations);
+    } catch {
+      return null;
+    }
+  };
 
   const loadChatHistory = async () => {
     if (!chatId) return;
@@ -67,13 +84,21 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
       const response = await fetch(`/api/chats/${chatId}`);
       if (response.ok) {
         const data = await response.json();
-        const transformedMessages = data.chat.messages.map((msg: any) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: new Date(msg.timestamp),
-          relevantChunks: msg.relevantChunks || [], // Use loaded relevant chunks
-        }));
+        const transformedMessages = data.chat.messages.map((msg: any) => {
+          const annotations = parseMessageAnnotations(msg.annotations);
+          const isHeraVideo = annotations?.type === "hera-video" && annotations?.videoUrl;
+
+          return {
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp),
+            relevantChunks: msg.relevantChunks || [], // Use loaded relevant chunks
+            annotations,
+            videoUrl: isHeraVideo ? annotations.videoUrl : undefined,
+            visualizationStatus: isHeraVideo ? "ready" : undefined,
+          };
+        });
         setMessages(transformedMessages);
       }
     } catch (error) {
@@ -121,9 +146,10 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
       }
 
       const data = await response.json();
+      setActiveChatId(data.chatId);
       
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: data.messageId || (Date.now() + 1).toString(),
         role: "assistant",
         content: data.text,
         timestamp: new Date(),
@@ -230,7 +256,7 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
           videoUrl: data.videoUrl,
           visualizationStatus: "ready",
         });
-        return;
+        return data.videoUrl as string;
       }
 
       if (data.status === "failed") {
@@ -241,6 +267,40 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
     }
 
     throw new Error("Video generation is taking longer than expected");
+  };
+
+  const saveVideoMessage = async (visualMessageId: string, videoUrl: string) => {
+    if (!activeChatId) return;
+
+    try {
+      const response = await fetch(`/api/chats/${activeChatId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          role: "assistant",
+          content: "Visual explanation",
+          annotations: {
+            type: "hera-video",
+            videoUrl,
+            provider: "Hera",
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save video message");
+      }
+
+      const data = await response.json();
+      updateMessage(visualMessageId, {
+        id: data.message.id,
+        timestamp: new Date(data.message.timestamp),
+      });
+    } catch (error) {
+      console.error("Error saving video message:", error);
+    }
   };
 
   const handleVisualizeExplanation = async (sourceMessage: Message) => {
@@ -276,7 +336,8 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
       }
 
       const data = await response.json();
-      await pollHeraVideo(data.videoId, visualMessageId);
+      const videoUrl = await pollHeraVideo(data.videoId, visualMessageId);
+      await saveVideoMessage(visualMessageId, videoUrl);
     } catch (error) {
       console.error("Error generating visual explanation:", error);
       updateMessage(visualMessageId, {
