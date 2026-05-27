@@ -267,6 +267,8 @@ Note: This response is based on the most relevant sections of the PDF that match
     });
 
     return NextResponse.json({
+      chatId: chat.id,
+      messageId: savedMessage.id,
       text: aiResponse,
       relevantChunks: searchResults.map(chunk => ({
         ...chunk,
