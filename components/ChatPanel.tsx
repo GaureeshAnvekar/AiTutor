@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Send, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { Send, Mic, MicOff, Volume2, VolumeX, Video } from "lucide-react";
 import { eventDispatcher, EVENTS } from "@/lib/eventDispatcher";
 import MetadataPill from "./MetadataPill";
 import VoiceControls, { VoiceControlsRef } from "./VoiceControls";
@@ -24,6 +24,8 @@ interface Message {
   content: string;
   timestamp: Date;
   relevantChunks?: ChunkMetadata[];
+  videoUrl?: string;
+  visualizationStatus?: "generating" | "ready" | "failed";
 }
 
 interface ChatPanelProps {
@@ -41,6 +43,7 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
   const [autoSpeak, setAutoSpeak] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [visualizingMessageIds, setVisualizingMessageIds] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const voiceControlsRef = useRef<VoiceControlsRef>(null);
   const autoClickedMessageIdsRef = useRef<Set<string>>(new Set());
@@ -205,6 +208,90 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
     });
   };
 
+  const updateMessage = (messageId: string, updates: Partial<Message>) => {
+    setMessages(prev =>
+      prev.map(msg => (msg.id === messageId ? { ...msg, ...updates } : msg))
+    );
+  };
+
+  const pollHeraVideo = async (videoId: string, visualMessageId: string) => {
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const response = await fetch(`/api/hera/videos/${videoId}`);
+
+      if (!response.ok) {
+        throw new Error("Failed to check video status");
+      }
+
+      const data = await response.json();
+
+      if (data.status === "success" && data.videoUrl) {
+        updateMessage(visualMessageId, {
+          content: "Visual explanation",
+          videoUrl: data.videoUrl,
+          visualizationStatus: "ready",
+        });
+        return;
+      }
+
+      if (data.status === "failed") {
+        throw new Error("Hera could not generate this video");
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+
+    throw new Error("Video generation is taking longer than expected");
+  };
+
+  const handleVisualizeExplanation = async (sourceMessage: Message) => {
+    if (visualizingMessageIds.has(sourceMessage.id)) return;
+
+    const visualMessageId = `${sourceMessage.id}-visual-${Date.now()}`;
+
+    setVisualizingMessageIds(prev => new Set(prev).add(sourceMessage.id));
+    setMessages(prev => [
+      ...prev,
+      {
+        id: visualMessageId,
+        role: "assistant",
+        content: "Generating a visual explanation...",
+        timestamp: new Date(),
+        visualizationStatus: "generating",
+      },
+    ]);
+
+    try {
+      const response = await fetch("/api/hera/videos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: sourceMessage.content,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to start video generation");
+      }
+
+      const data = await response.json();
+      await pollHeraVideo(data.videoId, visualMessageId);
+    } catch (error) {
+      console.error("Error generating visual explanation:", error);
+      updateMessage(visualMessageId, {
+        content: "Sorry, I couldn't generate a visual explanation. Please try again.",
+        visualizationStatus: "failed",
+      });
+    } finally {
+      setVisualizingMessageIds(prev => {
+        const next = new Set(prev);
+        next.delete(sourceMessage.id);
+        return next;
+      });
+    }
+  };
+
   // Auto-click the first pill of newly added assistant messages with relevant chunks
   useEffect(() => {
     if (!messages || messages.length === 0) return;
@@ -261,9 +348,31 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
                     : "bg-gray-100 text-gray-900"
                 }`}>
                   <p className="text-sm">{msg.content}</p>
+
+                  {msg.visualizationStatus === "ready" && msg.videoUrl && (
+                    <div className="mt-3">
+                      <video
+                        src={msg.videoUrl}
+                        controls
+                        className="w-full rounded-md border border-gray-200 bg-black"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                      <p className="mt-2 text-[11px] font-medium text-gray-500">
+                        Powered by Hera
+                      </p>
+                    </div>
+                  )}
+
+                  {msg.visualizationStatus === "generating" && (
+                    <div className="mt-3 flex items-center space-x-2 text-xs text-gray-500">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                      <span>Creating a visual explanation...</span>
+                    </div>
+                  )}
                   
                   {/* Voice output button for assistant messages */}
-                  {msg.role === "assistant" && voiceSupported && (
+                  {msg.role === "assistant" && !msg.visualizationStatus && voiceSupported && (
                     <div className="mt-2 pt-2 border-t border-gray-200">
                       <button
                         onClick={() => {
@@ -295,6 +404,23 @@ export default function ChatPanel({ pdfId, currentPage, chatId }: ChatPanelProps
                           />
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {msg.role === "assistant" && !msg.visualizationStatus && (
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <button
+                        onClick={() => handleVisualizeExplanation(msg)}
+                        className="text-xs text-purple-600 hover:text-purple-800 flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isLoading || visualizingMessageIds.has(msg.id)}
+                      >
+                        <Video className="h-3 w-3" />
+                        <span>
+                          {visualizingMessageIds.has(msg.id)
+                            ? "Visualizing..."
+                            : "Visualize Explanation"}
+                        </span>
+                      </button>
                     </div>
                   )}
                 </div>
