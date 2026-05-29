@@ -142,7 +142,7 @@ export default function LoginPage() {
               Watch a{" "}
           
             <Link
-              href="https://drive.google.com/file/d/1VuZv6SPCABrsL8xop4dw4lsTKBgzNfT0/view?usp=sharing"
+              href="https://drive.google.com/file/d/1b-dyAQXqFaI8lSWq3EZNuQktXfwnhuqC/view"
               className="font-medium text-blue-600 hover:text-blue-500"
               target="_blank" rel="noopener noreferrer"
             >
