@@ -5,7 +5,7 @@ Turn static textbooks into interactive PDFs for high schoolers & graduate studen
 [https://aitutor.wiki](https://aitutor.wiki)
 
 Video demo (with audio):
-[Watch the demo video](https://drive.google.com/file/d/1b-dyAQXqFaI8lSWq3EZNuQktXfwnhuqC/view)
+[![Watch the demo video](./home.png)](https://drive.google.com/file/d/1b-dyAQXqFaI8lSWq3EZNuQktXfwnhuqC/view)
 
 Note: For large pdfs with multiple high-res images, the upload process can be further improved with parallel workers on the backend, processing different pages of the pdf in parallel and initiating the "image verbalization LLM requests".
 
