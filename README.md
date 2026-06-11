@@ -1,17 +1,14 @@
 # AI PDF Tutor
 
-An intelligent PDF tutoring application that helps students understand documents through interactive AI-powered conversations. Built with Next.js 14, Prisma, OpenAI, and modern web technologies.
+Turn static textbooks into interactive PDFs for high schoolers & graduate students, through an interactive split-screen interface - voice support, section highlighting, image search, and visual explanations.
 
-Vercel link: https://ai-tutor-1-fukhnuyaa-gaurishs-projects-ca8013fe.vercel.app/login
+[https://aitutor.wiki](https://aitutor.wiki)
 
 Video demo (with audio):
-[![Watch the demo video](./home.png)](https://drive.google.com/file/d/1VuZv6SPCABrsL8xop4dw4lsTKBgzNfT0/view?usp=sharing)
+[Watch the demo video](https://drive.google.com/file/d/1b-dyAQXqFaI8lSWq3EZNuQktXfwnhuqC/view)
 
-Note: For large pdfs with multiple high-res images, the upload process can be further improved with parallel workers on the backend processing different pages of the pdf in parallel and initiating the "image verbalization LLM requests".
+Note: For large pdfs with multiple high-res images, the upload process can be further improved with parallel workers on the backend, processing different pages of the pdf in parallel and initiating the "image verbalization LLM requests".
 
-## 🚀 Features
-
-### ✅ Implemented
 - **Complete Authentication System** - Email/password signup and login with NextAuth
 - **PDF Upload & Management** - Drag-and-drop upload with file validation
 - **Split-Screen Interface** - PDF viewer with real-time chat panel
@@ -23,28 +20,12 @@ Note: For large pdfs with multiple high-res images, the upload process can be fu
 - PDF annotation and highlighting system
 - Advanced voice integration
 - Vector search within PDFs
+- Visual explanations
 
-
-## 🛠️ Tech Stack
-
-- **Frontend**: Next.js 14 (App Router), React, TypeScript, Tailwind CSS
-- **Backend**: Next.js API Routes, Prisma ORM
-- **Database**: PostgreSQL
-- **AI**: OpenAI GPT-4, Vercel AI SDK
-- **Authentication**: NextAuth.js
-- **File Handling**: PDF.js, React Dropzone
-- **Deployment**: Vercel-ready
-
-## 📋 Prerequisites
-
-- Node.js 18+
-- PostgreSQL database
-- OpenAI API key
-- Gemini API key
-
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Clone and Install
+
 ```bash
 git clone <repository-url>
 cd ai-pdf-tutor
@@ -52,11 +33,13 @@ npm install
 ```
 
 ### 2. Environment Setup
+
 ```bash
 cp env.example .env.local
 ```
 
 Fill in your `.env.local`:
+
 ```env
 DATABASE_URL=postgresql://user:pass@localhost:5432/ai_pdf_tutor
 OPENAI_API_KEY=sk-your-openai-key
@@ -65,6 +48,7 @@ NEXTAUTH_URL=http://localhost:3000
 ```
 
 ### 3. Database Setup
+
 ```bash
 # Generate Prisma client
 npx prisma generate
@@ -77,33 +61,9 @@ npm run db:seed
 ```
 
 ### 4. Start Development Server
+
 ```bash
 npm run dev
 ```
 
-Visit `http://localhost:3000` 🎉
-
-
-
-## 🗄️ Database Schema
-
-
-
-
-
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
-1. Push code to GitHub
-2. Connect repository to Vercel
-3. Set environment variables in Vercel dashboard
-4. Deploy automatically
-
-### Environment Variables for Production
-```env
-DATABASE_URL=your-production-postgres-url
-OPENAI_API_KEY=your-production-openai-key
-NEXTAUTH_SECRET=your-production-secret
-NEXTAUTH_URL=https://your-domain.com
-```
+Visit `http://localhost:3000`
